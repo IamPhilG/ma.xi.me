@@ -6,6 +6,8 @@ allowed-tools: Read, Glob, Grep, Bash, Write, Edit
 ---
 # mA.xI.me — Clôture de session
 
+Rappel: Ce skill applique la boucle golbale CLAUDE.md au cas spécifique de la session / spec / handoff.
+
 ## 1. Git (prudent)
 `git status` d'abord. JAMAIS `git add -A`. Montrer les fichiers, vérifier
 l'absence de secrets, proposer un `git add` ciblé. L'utilisateur décide.

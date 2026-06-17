@@ -7,8 +7,12 @@
 # Faux positifs possibles si le texte destructeur apparaît dans une chaîne (ex: message de
 # commit citant "git reset --hard", echo décrivant "rm -rf"). Contournable via encodage/alias.
 # Compromis assumé : simplicité > exhaustivité, coût du faux positif = reformuler la commande.
+#
+# Fail-open assumé : si jq est absent ou échoue, $cmd est vide → exit 0 (tout autoriser).
+# Conséquence : sans jq installé, CE HOOK N'OFFRE AUCUNE PROTECTION.
+# Prérequis : winget install jqlang.jq (Windows) ou brew install jq / apt install jq.
 input="$(cat)"
-cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
+cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)"
 [ -z "$cmd" ] && exit 0
 
 # Irréversible, aucun usage légitime automatisé dans ce repo → DENY dur

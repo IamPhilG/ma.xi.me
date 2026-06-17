@@ -5,6 +5,8 @@ allowed-tools: Read, Glob, Grep, Bash
 ---
 # mA.xI.me — Démarrage de session (TRAVAIL)
 
+Rappel: Ce skill applique la boucle golbale CLAUDE.md au cas spécifique de la session / spec / handoff.
+
 Exécute dans l'ordre :
 
 ## 1. Charger le contexte
