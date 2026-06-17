@@ -12,7 +12,7 @@ selon une boucle **SPEC → PLAN → LIVRABLE → VERIFY → REVIEW → IMPROVE*
 - `agents/maxime-reviewer.md` — sous-agent d'analyse (read-only via hook de garde-fou) pour les grosses revues
 - `skills/maxime-*/` — 7 workflows : start, plan, handoff, setup, retrofit, review, kb
 - `docs/` — architecture et spécifications de référence
-- `install/install.ps1` — installe le contenu dans `~/.claude/`
+- `install/install.ps1` & `install/install.sh` — installe le contenu dans `~/.claude/`
 
 ## Installation
 
@@ -21,13 +21,19 @@ selon une boucle **SPEC → PLAN → LIVRABLE → VERIFY → REVIEW → IMPROVE*
 ```powershell
 git clone https://github.com/IamPhilG/ma.xi.me
 cd ma.xi.me
-# La policy d'exécution PowerShell par défaut bloque les scripts. Lance
-# l'installeur sans modifier la policy de ta machine :
-   powershell -ExecutionPolicy Bypass -File install\install.ps1
+
+# La policy d'exécution PowerShell par défaut bloque les scripts.
+# Pour en savoir plus sur les policy Powershell :
+#  https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-7.6)
+
+# Lance l'installeur sans modifier la policy de ta machine :
+#   powershell -ExecutionPolicy Bypass -File install\install.ps1
+
+# Ou
 # Pour pré-visualiser ce qui sera fait, sans rien modifier :
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -WhatIf
-.\install\install.ps1
+  powershell -ExecutionPolicy Bypass -File install\install.ps1 -WhatIf
 ```
+
 Puis dans Claude Code : `/memory`, `/agents`, `/` pour vérifier le chargement.
 
 L'installeur sauvegarde tout `~/.claude/agents` et `~/.claude/skills`
