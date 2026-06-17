@@ -15,7 +15,8 @@ avec Claude Code. Il est publié à titre de partage, pas comme un produit maint
 - Demandes de fonctionnalités — le système évolue en fonction d'un usage personnel
 - PRs qui généralisent `CLAUDE.md` (Les utilisateurs qui souhaitent adapter le système
   doivent forker le repo)
-- Ajout de skills ou agents sans lien avec la méthode SPEC/VERIFY/REVIEW existante
+- Ajout de skills ou agents sans lien avec la méthode
+  SPEC → PLAN → LIVRABLE → VERIFY → REVIEW → IMPROVE existante
 
 ## Comment contribuer
 

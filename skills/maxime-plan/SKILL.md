@@ -5,7 +5,7 @@ allowed-tools: Read, Glob, Grep, Bash, Write
 ---
 # mA.xI.me — Plan (spec avant implémentation)
 
-Rappel: Ce skill applique la boucle golbale CLAUDE.md au cas spécifique de la session / spec / handoff.
+Rappel: Ce skill applique la boucle globale CLAUDE.md à la préparation d'une spec avant implémentation.
 
 ## Quand
 Dès qu'une tâche concrète est identifiée (feature, fix, refacto, migration).
