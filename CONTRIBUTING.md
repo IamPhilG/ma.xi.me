@@ -8,7 +8,7 @@ avec Claude Code. Il est publié à titre de partage, pas comme un produit maint
 - **Corrections de documentation** — typos, liens cassés, instructions ambiguës
 - **Notes de compatibilité** — expérience d'installation sur macOS/Linux, changements
   de comportement suite à une mise à jour de Claude Code
-- **Bug reports** sur `install.ps1` ou le hook `block-destructive-bash.sh`
+- **Bug reports** sur `install.ps1` ou `install.sh` ou le hook `block-destructive-bash.sh`
 
 ## Ce qui ne sera probablement pas accepté
 
