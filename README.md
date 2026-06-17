@@ -23,7 +23,7 @@ git clone https://github.com/IamPhilG/ma.xi.me
 cd ma.xi.me
 
 # La policy d'exécution PowerShell par défaut bloque les scripts.
-# Pour en savoir plus sur les policy Powershell :
+# Pour en savoir plus sur les policy PowerShell :
 #  https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-7.6)
 # Enlever le '#' ci-dessous pour choisir:
 
