@@ -6,6 +6,8 @@ allowed-tools: Read, Glob, Grep, Bash, Write, Edit
 ---
 # mA.xI.me — Clôture de session
 
+Rappel: Ce skill applique la boucle globale CLAUDE.md à la clôture et au transfert de contexte.
+
 ## 1. Git (prudent)
 `git status` d'abord. JAMAIS `git add -A`. Montrer les fichiers, vérifier
 l'absence de secrets, proposer un `git add` ciblé. L'utilisateur décide.

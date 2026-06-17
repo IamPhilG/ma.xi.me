@@ -4,7 +4,7 @@
 
 Agent d'orchestration et de méthode pour Claude Code. mA.xI.me uniformise
 mes repos : même structure, même façon de travailler avec Claude partout,
-selon une boucle **SPEC → VERIFY → REVIEW**.
+selon une boucle **SPEC → PLAN → LIVRABLE → VERIFY → REVIEW → IMPROVE**.
 
 ## Contenu
 - `CLAUDE.md` — méthode universelle + socle de comportement (toujours actif)

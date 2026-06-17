@@ -54,16 +54,19 @@ Deux rôles distincts : specs/ = le détail complet ; decisions-log.md = la trac
 ```
 ~/.claude/
 ├── CLAUDE.md                    # règles permanentes (court)
-├── mA.xI.me-ARCHITECTURE.md     # ce fichier (référence)
 ├── backups/                     # backups du CLAUDE.md (existe déjà)
 ├── skills/
 │   ├── maxime-start/SKILL.md
 │   ├── maxime-handoff/SKILL.md
+│   ├── maxime-plan/SKILL.md
 │   ├── maxime-setup/SKILL.md
+│   ├── maxime-retrofit/SKILL.md
 │   ├── maxime-review/SKILL.md
 │   └── maxime-kb/SKILL.md
 └── agents/
     └── maxime-reviewer.md       # sous-agent read-only
+# Note : ARCHITECTURE.md n'est pas copié dans ~/.claude/ — il vit dans le repo
+# (référence : https://github.com/IamPhilG/ma.xi.me/blob/main/docs/ARCHITECTURE.md)
 ```
 
 ### Par repo (.claude/)

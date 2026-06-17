@@ -5,6 +5,8 @@ allowed-tools: Read, Glob, Grep, Bash, Write
 ---
 # mA.xI.me — Plan (spec avant implémentation)
 
+Rappel: Ce skill applique la boucle globale CLAUDE.md à la préparation d'une spec avant implémentation.
+
 ## Quand
 Dès qu'une tâche concrète est identifiée (feature, fix, refacto, migration).
 JAMAIS de code avant que la spec soit écrite et approuvée explicitement.
