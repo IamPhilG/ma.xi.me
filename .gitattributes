@@ -1,0 +1,8 @@
+# Normalisation des fins de ligne, cross-platform
+* text=auto
+
+# Scripts shell : toujours LF, sinon cassés sur macOS/Linux
+*.sh text eol=lf
+
+# Scripts PowerShell : CRLF (convention Windows)
+*.ps1 text eol=crlf
