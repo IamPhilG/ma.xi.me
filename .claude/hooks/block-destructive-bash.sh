@@ -8,11 +8,23 @@
 # commit citant "git reset --hard", echo décrivant "rm -rf"). Contournable via encodage/alias.
 # Compromis assumé : simplicité > exhaustivité, coût du faux positif = reformuler la commande.
 #
-# Fail-open assumé : si jq est absent ou échoue, $cmd est vide → exit 0 (tout autoriser).
-# Conséquence : sans jq installé, CE HOOK N'OFFRE AUCUNE PROTECTION.
+# Fail-open SIGNALÉ : si jq est absent ou si le parsing échoue (JSON inattendu,
+# code de sortie non-zéro, champ manquant), le hook ne peut pas parser la commande
+# et n'offre AUCUNE PROTECTION. Dans les deux cas, un avertissement est émis sur
+# stderr (garde-fou DÉSACTIVÉ) puis le hook autorise (exit 0). Avertissement
+# runtime best-effort — le filet fiable reste de vérifier jq à l'installation.
 # Prérequis : winget install jqlang.jq (Windows) ou brew install jq / apt install jq.
+if ! command -v jq >/dev/null 2>&1; then
+  echo "[mA.xI.me] jq introuvable — garde-fou anti-commandes-destructrices DÉSACTIVÉ." >&2
+  exit 0
+fi
 input="$(cat)"
-cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)"
+cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>&1)"
+jq_exit=$?
+if [ $jq_exit -ne 0 ]; then
+  echo "[mA.xI.me] jq a échoué (exit $jq_exit) — garde-fou DÉSACTIVÉ pour cette commande. Détail: $cmd" >&2
+  exit 0
+fi
 [ -z "$cmd" ] && exit 0
 
 # Irréversible, aucun usage légitime automatisé dans ce repo → DENY dur

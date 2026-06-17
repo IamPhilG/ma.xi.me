@@ -1,6 +1,9 @@
 # Normalisation des fins de ligne, cross-platform
 * text=auto
 
+# Fichiers MarkDown : toujours LF
+ *.md text eol=lf
+ 
 # Scripts shell : toujours LF, sinon cassés sur macOS/Linux
 *.sh text eol=lf
 
