@@ -25,13 +25,15 @@ cd ma.xi.me
 # La policy d'exécution PowerShell par défaut bloque les scripts.
 # Pour en savoir plus sur les policy Powershell :
 #  https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-7.6)
+# Enlever le '#' ci-dessous pour choisir:
 
+# Choix 1:
 # Lance l'installeur sans modifier la policy de ta machine :
-#   powershell -ExecutionPolicy Bypass -File install\install.ps1
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1
 
-# Ou
+# Ou choix 2:
 # Pour pré-visualiser ce qui sera fait, sans rien modifier :
-  powershell -ExecutionPolicy Bypass -File install\install.ps1 -WhatIf
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -WhatIf
 ```
 
 Puis dans Claude Code : `/memory`, `/agents`, `/` pour vérifier le chargement.
