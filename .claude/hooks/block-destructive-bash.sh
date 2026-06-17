@@ -8,9 +8,15 @@
 # commit citant "git reset --hard", echo décrivant "rm -rf"). Contournable via encodage/alias.
 # Compromis assumé : simplicité > exhaustivité, coût du faux positif = reformuler la commande.
 #
-# Fail-open assumé : si jq est absent ou échoue, $cmd est vide → exit 0 (tout autoriser).
-# Conséquence : sans jq installé, CE HOOK N'OFFRE AUCUNE PROTECTION.
+# Fail-open SIGNALÉ : si jq est absent, le hook ne peut pas parser la commande et
+# n'offre AUCUNE PROTECTION. Plutôt qu'échouer en silence, il l'affiche sur stderr
+# (garde-fou DÉSACTIVÉ) puis autorise (exit 0). Avertissement runtime best-effort —
+# le filet fiable reste de vérifier jq à l'installation.
 # Prérequis : winget install jqlang.jq (Windows) ou brew install jq / apt install jq.
+if ! command -v jq >/dev/null 2>&1; then
+  echo "[mA.xI.me] jq introuvable — garde-fou anti-commandes-destructrices DÉSACTIVÉ." >&2
+  exit 0
+fi
 input="$(cat)"
 cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)"
 [ -z "$cmd" ] && exit 0

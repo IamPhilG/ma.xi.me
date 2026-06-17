@@ -15,29 +15,26 @@ selon une boucle **SPEC → PLAN → LIVRABLE → VERIFY → REVIEW → IMPROVE*
 - `install/install.ps1` — installe le contenu dans `~/.claude/`
 
 ## Installation
+
+### Windows
+
 ```powershell
 git clone https://github.com/IamPhilG/ma.xi.me
 cd ma.xi.me
+# La policy d'exécution PowerShell par défaut bloque les scripts. Lance
+# l'installeur sans modifier la policy de ta machine :
+   powershell -ExecutionPolicy Bypass -File install\install.ps1
+# Pour pré-visualiser ce qui sera fait, sans rien modifier :
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -WhatIf
 .\install\install.ps1
 ```
 Puis dans Claude Code : `/memory`, `/agents`, `/` pour vérifier le chargement.
-
-## Installation (Windows)
-
-La policy d'exécution PowerShell par défaut bloque les scripts. Lance
-l'installeur sans modifier la policy de ta machine :
-
-    powershell -ExecutionPolicy Bypass -File install\install.ps1
-
-Pour pré-visualiser ce qui sera fait, sans rien modifier :
-
-    powershell -ExecutionPolicy Bypass -File install\install.ps1 -WhatIf
 
 L'installeur sauvegarde tout `~/.claude/agents` et `~/.claude/skills`
 existant dans `~/.claude/backups/` avant d'écrire, et ne copie que les
 fichiers `maxime*` — tes autres agents/skills ne sont pas touchés.
 
-## Installation (macOS / Linux)
+### macOS / Linux
 
     chmod +x install/install.sh
     ./install/install.sh
@@ -50,7 +47,18 @@ Pour pré-visualiser sans rien modifier :
 - **Git Bash** et **jq** sont requis pour le hook de garde-fou
   (`.claude/hooks/block-destructive-bash.sh`). Sur Windows, Git Bash est
   fourni avec Git for Windows ; installer `jq` via `winget install jqlang.jq`.
-  Sans ces outils, le garde-fou anti-commande-destructrice ne s'exécute pas.
+  (macOS : `brew install jq` · Linux : `apt install jq`).
+
+- **Vérifie que `jq` est bien trouvé** après installation :
+
+      jq --version
+
+  Sur Windows, redémarre ton terminal après `winget install` pour que `jq`
+  entre dans le PATH.
+
+> ⚠️ **Sans `jq`, le garde-fou n'offre aucune protection.** Le hook le détecte
+> et l'affiche (`garde-fou DÉSACTIVÉ`) au lieu d'échouer en silence — mais il
+> n'empêchera aucune commande destructrice. Installe `jq` avant de t'y fier.
 
 ## Principe à deux niveaux
 - **Socle** (`CLAUDE.md`) : garde-fous toujours actifs (branches, git prudent,
