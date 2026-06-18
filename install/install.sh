@@ -13,10 +13,18 @@ while [ $# -gt 0 ]; do
     --dry-run) dry=1 ;;
     --target)
       shift
+      if [ $# -eq 0 ] || [ -z "${1:-}" ] || [ "${1#--}" != "$1" ]; then
+        echo "Missing value for --target" >&2
+        exit 1
+      fi
       target="${1:-}"
       ;;
     --copilot-scope)
       shift
+      if [ $# -eq 0 ] || [ -z "${1:-}" ] || [ "${1#--}" != "$1" ]; then
+        echo "Missing value for --copilot-scope" >&2
+        exit 1
+      fi
       copilot_scope="${1:-}"
       ;;
     *)
