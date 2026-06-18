@@ -79,6 +79,29 @@ Deux rôles distincts : specs/ = le détail complet ; decisions-log.md = la trac
 └── agents/   # sous-agents spécifiques au repo
 ```
 
+### Codex
+```
+~/.codex/
+├── AGENTS.md                    # guidance globale Codex
+└── backups/                     # backups de l'installateur
+
+~/.agents/
+└── skills/
+    └── maxime-*/SKILL.md        # skills globaux Codex
+
+repo/
+├── AGENTS.md                    # guidance repo Codex
+└── .agents/
+    └── skills/
+        └── maxime-*/SKILL.md    # skills repo-scoped Codex
+```
+
+Codex utilise `AGENTS.md` pour les instructions durables et `.agents/skills`
+pour les workflows réutilisables. `CLAUDE.md` reste le socle méthodologique
+partagé du repo; `AGENTS.md` l'adapte à la surface Codex.
+Les dossiers `skills/maxime-*` restent la source de vérité; `.agents/skills`
+est une projection versionnée pour Codex, vérifiée par `tools/check-codex-skills-sync.*`.
+
 ### Knowledge base (repo dédié)
 ```
 knowledge-base/

@@ -22,6 +22,8 @@ history.jsonl
 .claude/backups/
 .copilot/memory/
 .copilot/backups/
+.codex/memory/
+.codex/backups/
 # .claude/settings.json because of hooks (Ce garde-fou doit suivre le repo, pas l'utilisateur.)
 .claude/settings.local.json
 # Doc de chantier ne doit pas être publiée

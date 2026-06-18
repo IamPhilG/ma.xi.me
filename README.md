@@ -2,17 +2,20 @@
 
 > A.I.me · MAX iMe · *Medium AI with eXtreme Intelligence for me*
 
-Agent d'orchestration et de méthode pour Claude Code. mA.xI.me uniformise
-mes repos : même structure, même façon de travailler avec Claude partout,
+Agent d'orchestration et de méthode pour Claude Code, GitHub Copilot et Codex.
+mA.xI.me uniformise mes repos : même structure, même façon de travailler avec l'IA partout,
 selon une boucle **SPEC → PLAN → LIVRABLE → VERIFY → REVIEW → IMPROVE**.
 
 ## Contenu
 - `CLAUDE.md` — méthode universelle + socle de comportement (toujours actif)
+- `AGENTS.md` — instructions repo pour Codex
 - `agents/maxime.md` — orchestrateur (activable via `@maxime`)
 - `agents/maxime-reviewer.md` — sous-agent d'analyse (read-only via hook de garde-fou) pour les grosses revues
 - `skills/maxime-*/` — 7 workflows : start, plan, handoff, setup, retrofit, review, kb
+- `.agents/skills/maxime-*/` — skills repo-scoped pour Codex
+- `.codex/AGENTS.md` — modèle d'instructions globales Codex à installer dans `~/.codex/AGENTS.md`
 - `docs/` — architecture et spécifications de référence
-- `install/install.ps1` & `install/install.sh` — installe le contenu pour Claude et/ou GitHub Copilot selon la cible
+- `install/install.ps1` & `install/install.sh` — installe le contenu pour Claude, Copilot et/ou Codex selon la cible
 
 ## Installation
 
@@ -39,6 +42,12 @@ cd ma.xi.me
 
 # Installer Claude + Copilot:
 #  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target both -CopilotScope user
+
+# Installer Codex:
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target codex
+
+# Installer Claude + Copilot + Codex:
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target all -CopilotScope user
 
 # Ou choix 2:
 # Pour pré-visualiser ce qui sera fait, sans rien modifier :
@@ -68,9 +77,48 @@ Pour installer Claude + Copilot :
 
   ./install/install.sh --target both --copilot-scope user
 
+Pour installer Codex :
+
+  ./install/install.sh --target codex
+
+Pour installer Claude + Copilot + Codex :
+
+  ./install/install.sh --target all --copilot-scope user
+
 Pour pré-visualiser sans rien modifier :
 
   ./install/install.sh --dry-run --target both --copilot-scope user
+
+## Installation Codex
+
+Deux niveaux sont supportés :
+
+1) Compatibilité repo
+- `AGENTS.md` est lu par Codex à la racine du repo.
+- `.agents/skills/maxime-*/SKILL.md` expose les workflows mA.xI.me comme skills repo-scoped.
+- `skills/maxime-*` reste la source de vérité; `.agents/skills/maxime-*` doit rester synchronisé.
+
+2) Installation globale
+- `install/install.ps1 -Target codex` ou `install/install.sh --target codex`
+  copie :
+  - `.codex/AGENTS.md` vers `~/.codex/AGENTS.md`
+  - `.agents/skills/maxime-*` vers `~/.agents/skills/`
+
+Backups Codex:
+- `~/.codex/backups/`
+
+Mémoire de session:
+- `.codex/memory/` reste locale et non versionnée.
+
+Vérifier la synchronisation des skills Codex :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\check-codex-skills-sync.ps1
+```
+
+```bash
+bash tools/check-codex-skills-sync.sh
+```
 
 ## Installation GitHub Copilot (adaptation .copilot)
 
