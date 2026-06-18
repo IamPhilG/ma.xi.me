@@ -1,16 +1,17 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
-    [ValidateSet('claude', 'copilot', 'both')]
+    [ValidateSet('claude', 'copilot', 'codex', 'both', 'all')]
     [string]$Target = 'claude',
 
     [ValidateSet('user', 'workspace')]
     [string]$CopilotScope = 'user'
 )
 
-# Installe mA.xI.me pour Claude et/ou GitHub Copilot.
+# Installe mA.xI.me pour Claude, GitHub Copilot et/ou Codex.
 # - Claude: ~/.claude (CLAUDE.md + agents/skills maxime*)
 # - Copilot user: ~/.copilot/agents + ~/.copilot/instructions + dossier prompts VS Code
 # - Copilot workspace: ./.github (copilot-instructions + agents + prompts)
+# - Codex: ~/.codex/AGENTS.md + ~/.agents/skills/maxime*
 # Supporte -WhatIf (simulation) et -Confirm.
 $ErrorActionPreference = 'Stop'
 
@@ -145,13 +146,56 @@ function Install-Copilot {
     }
 }
 
+function Install-Codex {
+    $codexHome = "$HOME\.codex"
+    $skillsTarget = "$HOME\.agents\skills"
+    $backupDir = "$codexHome\backups\$stamp"
+    $globalAgents = Join-Path $codexHome 'AGENTS.md'
+    $codexSrc = Join-Path $src '.codex'
+    $repoSkillsSrc = Join-Path $src '.agents\skills'
+
+    if (!(Test-Path $codexSrc)) {
+        throw "Le dossier source .codex est introuvable dans le repo."
+    }
+    if (!(Test-Path $repoSkillsSrc)) {
+        throw "Le dossier source .agents\skills est introuvable dans le repo."
+    }
+
+    & (Join-Path $src 'tools\check-codex-skills-sync.ps1')
+
+    New-Item -ItemType Directory -Force -Path $codexHome, $skillsTarget | Out-Null
+
+    Backup-IfExists -Path $globalAgents -BackupDir $backupDir
+
+    if (Test-Path (Join-Path $skillsTarget 'maxime*')) {
+        $skillsBackup = Join-Path $backupDir 'skills'
+        New-Item -ItemType Directory -Force -Path $skillsBackup | Out-Null
+        Copy-Item (Join-Path $skillsTarget 'maxime*') $skillsBackup -Recurse -Force
+    }
+
+    Copy-Item (Join-Path $codexSrc 'AGENTS.md') $globalAgents -Force
+    Copy-Item (Join-Path $repoSkillsSrc 'maxime*') $skillsTarget -Recurse -Force
+
+    if (-not $WhatIfPreference) {
+        Write-Host "mA.xI.me installe pour Codex." -ForegroundColor Green
+        Write-Host "Instructions: $globalAgents"
+        Write-Host "Skills: $skillsTarget"
+    }
+}
+
 try {
     switch ($Target) {
         'claude' { Install-Claude }
         'copilot' { Install-Copilot }
+        'codex' { Install-Codex }
         'both' {
             Install-Claude
             Install-Copilot
+        }
+        'all' {
+            Install-Claude
+            Install-Copilot
+            Install-Codex
         }
     }
 }

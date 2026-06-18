@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Installe mA.xI.me pour Claude et/ou GitHub Copilot.
+# Installe mA.xI.me pour Claude, GitHub Copilot et/ou Codex.
 # Usage :
-#   ./install.sh [--dry-run] [--target claude|copilot|both] [--copilot-scope user|workspace]
+#   ./install.sh [--dry-run] [--target claude|copilot|codex|both|all] [--copilot-scope user|workspace]
 set -euo pipefail
 
 dry=0
@@ -35,8 +35,8 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-if [ "$target" != "claude" ] && [ "$target" != "copilot" ] && [ "$target" != "both" ]; then
-  echo "Invalid --target: $target (expected claude|copilot|both)" >&2
+if [ "$target" != "claude" ] && [ "$target" != "copilot" ] && [ "$target" != "codex" ] && [ "$target" != "both" ] && [ "$target" != "all" ]; then
+  echo "Invalid --target: $target (expected claude|copilot|codex|both|all)" >&2
   exit 1
 fi
 
@@ -172,10 +172,57 @@ EOF
   fi
 }
 
+install_codex() {
+  local codex_home="$HOME/.codex"
+  local skills_target="$HOME/.agents/skills"
+  local backup_dir="$codex_home/backups/$stamp"
+  local global_agents="$codex_home/AGENTS.md"
+  local codex_src="$src/.codex"
+  local repo_skills_src="$src/.agents/skills"
+
+  if [ ! -d "$codex_src" ]; then
+    echo "Missing source directory: $codex_src" >&2
+    exit 1
+  fi
+  if [ ! -d "$repo_skills_src" ]; then
+    echo "Missing source directory: $repo_skills_src" >&2
+    exit 1
+  fi
+
+  bash "$src/tools/check-codex-skills-sync.sh"
+
+  run mkdir -p "$codex_home" "$skills_target"
+
+  backup_if_exists "$global_agents" "$backup_dir"
+
+  if compgen -G "$skills_target/maxime*" > /dev/null; then
+    run mkdir -p "$backup_dir/skills"
+    for f in "$skills_target"/maxime*; do
+      [ -e "$f" ] || continue
+      run cp -R "$f" "$backup_dir/skills/"
+    done
+  fi
+
+  run cp -f "$codex_src/AGENTS.md" "$global_agents"
+  run cp -R "$repo_skills_src"/maxime* "$skills_target/"
+
+  if [ "$dry" = 0 ]; then
+    echo -e "\033[32mmA.xI.me installe pour Codex.\033[0m"
+    echo "Instructions: $global_agents"
+    echo "Skills: $skills_target"
+  fi
+}
+
 if [ "$target" = "claude" ]; then
   install_claude
 elif [ "$target" = "copilot" ]; then
   install_copilot
+elif [ "$target" = "codex" ]; then
+  install_codex
+elif [ "$target" = "all" ]; then
+  install_claude
+  install_copilot
+  install_codex
 else
   install_claude
   install_copilot
