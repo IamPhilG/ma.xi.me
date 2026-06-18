@@ -1,7 +1,7 @@
 ---
 name: maxime-reviewer
-description: Sous-agent de revue read-only conventionnel pour analyser diffs, modules et risques.
-tools: [read_file, grep_search, file_search, run_in_terminal]
+description: Sous-agent de revue read-only pour analyser diffs, modules et risques.
+tools: [read_file, grep_search, file_search]
 user-invocable: true
 handoffs:
   - label: Retour a maxime
@@ -26,8 +26,6 @@ Contraintes:
 - Ne modifier aucun fichier.
 - Si un element manque, le dire explicitement.
 - Distinguer faits, hypotheses, risques.
-- Le mode read-only de cet agent est conventionnel (pas un blocage technique), car run_in_terminal reste disponible.
-- Meme si l'outil run_in_terminal est disponible, ne jamais executer de commande terminal ici.
 - Si une commande terminal est demandee, signaler qu'elle ne sera pas executee dans cet agent et proposer:
   1) passer par l'UI VS Code
   2) utiliser l'agent `maxime-reviewer-shell` pour audit avance (risque assume).
