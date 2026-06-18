@@ -2,12 +2,16 @@
 name: maxime
 description: Orchestrateur mA.xI.me. Applique SPEC -> PLAN -> LIVRABLE -> VERIFY -> REVIEW -> IMPROVE et delegue les revues lourdes.
 tools: [read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file, agent]
-agents: [maxime-reviewer]
+agents: [maxime-reviewer, maxime-reviewer-shell]
 user-invocable: true
 handoffs:
   - label: Passer en revue lourde
     agent: maxime-reviewer
     prompt: Analyse la cible en lecture seule et retourne risques, fichiers et recommandation.
+    send: false
+  - label: Passer en revue shell
+    agent: maxime-reviewer-shell
+    prompt: Analyse la cible avec acces terminal pour audit avance.
     send: false
 ---
 

@@ -42,6 +42,7 @@ run() { if [ "$dry" = 1 ]; then echo "[dry-run] $*"; else "$@"; fi; }
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 src="$(dirname "$script_dir")"
 stamp="$(date +%Y%m%d-%H%M%S)"
+day_stamp="$(date +%Y%m%d)"
 
 backup_if_exists() {
   local src_path="$1"
@@ -87,12 +88,13 @@ install_copilot() {
     exit 1
   fi
 
-  local agents_target prompts_target instructions_target backup_dir memory_target
+  local agents_target prompts_target instructions_target instructions_dir backup_dir memory_target
   if [ "$copilot_scope" = "workspace" ]; then
     agents_target="$src/.github/agents"
     prompts_target="$src/.github/prompts"
     instructions_target="$src/.github/copilot-instructions.md"
-    memory_target="$src/.copilot/memory/session-handoff.md"
+    instructions_dir=""
+    memory_target="$src/.copilot/memory/$day_stamp.session-handoff.md"
     backup_dir="$HOME/.copilot/backups/$stamp"
   else
     agents_target="$HOME/.copilot/agents"
@@ -101,12 +103,16 @@ install_copilot() {
     else
       prompts_target="$HOME/.config/Code/User/prompts"
     fi
-    instructions_target="$prompts_target/maxime-global.instructions.md"
+    instructions_dir="$HOME/.copilot/instructions"
+    instructions_target="$instructions_dir/maxime-global.instructions.md"
     memory_target=""
     backup_dir="$HOME/.copilot/backups/$stamp"
   fi
 
   run mkdir -p "$agents_target" "$prompts_target"
+  if [ -n "$instructions_dir" ]; then
+    run mkdir -p "$instructions_dir"
+  fi
 
   backup_if_exists "$instructions_target" "$backup_dir"
 
@@ -128,10 +134,25 @@ install_copilot() {
 
   if [ "$copilot_scope" = "workspace" ]; then
     run mkdir -p "$(dirname "$memory_target")"
-    memory_source="$copilot_src/memory/session-handoff.md"
-    if [ "$(cd "$(dirname "$memory_source")" && pwd)/$(basename "$memory_source")" != "$(cd "$(dirname "$memory_target")" && pwd)/$(basename "$memory_target")" ]; then
-      backup_if_exists "$memory_target" "$backup_dir"
-      run cp -f "$memory_source" "$memory_target"
+    if [ ! -f "$memory_target" ]; then
+      if [ "$dry" = 1 ]; then
+        echo "[dry-run] create $memory_target"
+      else
+        cat > "$memory_target" <<EOF
+# Session Handoff
+
+## Date
+- $day_stamp
+
+## Etat courant
+- Aucun handoff initialise.
+
+## Prochaines actions
+- Definir la tache active.
+- Confirmer les criteres d'acceptation.
+- Executer puis verifier.
+EOF
+      fi
     fi
   fi
 

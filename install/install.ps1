@@ -9,13 +9,14 @@ param(
 
 # Installe mA.xI.me pour Claude et/ou GitHub Copilot.
 # - Claude: ~/.claude (CLAUDE.md + agents/skills maxime*)
-# - Copilot user: ~/.copilot/agents + dossier prompts VS Code
+# - Copilot user: ~/.copilot/agents + ~/.copilot/instructions + dossier prompts VS Code
 # - Copilot workspace: ./.github (copilot-instructions + agents + prompts)
 # Supporte -WhatIf (simulation) et -Confirm.
 $ErrorActionPreference = 'Stop'
 
 $src   = Split-Path $PSScriptRoot -Parent
 $stamp = Get-Date -Format yyyyMMdd-HHmmss
+$dayStamp = Get-Date -Format yyyyMMdd
 
 function Install-Claude {
     $target  = "$HOME\.claude"
@@ -75,8 +76,9 @@ function Install-Copilot {
         $agentsTarget = Join-Path $ghRoot 'agents'
         $promptsTarget = Join-Path $ghRoot 'prompts'
         $instructionsTarget = Join-Path $ghRoot 'copilot-instructions.md'
-        $memoryTarget = Join-Path $src '.copilot\memory\session-handoff.md'
+        $memoryTarget = Join-Path $src ".copilot\memory\$dayStamp.session-handoff.md"
         $backupDir = "$HOME\.copilot\backups\$stamp"
+        $instructionsDir = $null
     }
     else {
         $agentsTarget = "$HOME\.copilot\agents"
@@ -84,12 +86,16 @@ function Install-Copilot {
             throw "APPDATA est introuvable. Impossible de determiner le dossier prompts VS Code."
         }
         $promptsTarget = Join-Path $env:APPDATA 'Code\User\prompts'
-        $instructionsTarget = Join-Path $promptsTarget 'maxime-global.instructions.md'
+        $instructionsDir = "$HOME\.copilot\instructions"
+        $instructionsTarget = Join-Path $instructionsDir 'maxime-global.instructions.md'
         $memoryTarget = $null
         $backupDir = "$HOME\.copilot\backups\$stamp"
     }
 
     New-Item -ItemType Directory -Force -Path $agentsTarget, $promptsTarget | Out-Null
+    if ($instructionsDir) {
+        New-Item -ItemType Directory -Force -Path $instructionsDir | Out-Null
+    }
 
     Backup-IfExists -Path $instructionsTarget -BackupDir $backupDir
 
@@ -112,11 +118,22 @@ function Install-Copilot {
     if ($CopilotScope -eq 'workspace') {
         $memoryDir = Split-Path $memoryTarget -Parent
         New-Item -ItemType Directory -Force -Path $memoryDir | Out-Null
-        $memorySource = Join-Path $copilotSrc 'memory\session-handoff.md'
-        $sameMemoryPath = ([System.IO.Path]::GetFullPath($memorySource) -eq [System.IO.Path]::GetFullPath($memoryTarget))
-        if (-not $sameMemoryPath) {
-            Backup-IfExists -Path $memoryTarget -BackupDir $backupDir
-            Copy-Item $memorySource $memoryTarget -Force
+        if (!(Test-Path $memoryTarget)) {
+            $defaultHandoff = @"
+# Session Handoff
+
+## Date
+- $dayStamp
+
+## Etat courant
+- Aucun handoff initialise.
+
+## Prochaines actions
+- Definir la tache active.
+- Confirmer les criteres d'acceptation.
+- Executer puis verifier.
+"@
+            Set-Content -Path $memoryTarget -Value $defaultHandoff -Encoding UTF8
         }
     }
 

@@ -79,8 +79,10 @@ Le dossier source de verite est `./.copilot/`.
 Contenu principal :
 - `./.copilot/copilot-instructions.md`
 - `./.copilot/agents/*.agent.md`
+- `./.copilot/agents/maxime-reviewer.agent.md` (read-only, n'execute pas le terminal et redirige)
+- `./.copilot/agents/maxime-reviewer-shell.agent.md` (audit avance avec terminal, risque assume)
 - `./.copilot/prompts/*.prompt.md`
-- `./.copilot/memory/session-handoff.md`
+- `./.copilot/memory/YYYYMMDD.session-handoff.md` (local, non versionne)
 
 ### Deploiement via scripts
 
@@ -98,13 +100,14 @@ Options recommandées :
 2) Portee utilisateur (locale)
 - Agents : `~/.copilot/agents/`
 - Prompts : dossier utilisateur VS Code (`prompts`)
-- Instructions : `maxime-global.instructions.md` dans ce meme dossier utilisateur VS Code
+- Instructions : `~/.copilot/instructions/maxime-global.instructions.md`
 
 Backups Copilot:
 - Toujours hors repo, sous `~/.copilot/backups/`
 
 Memoire de session (sans partage Claude Code) :
-- `#file:.copilot/memory/session-handoff.md`
+- `#file:.copilot/memory/YYYYMMDD.session-handoff.md`
+- Fichier local uniquement (ignore par git). En scope workspace, l'installeur cree/utilise le fichier du jour (format `YYYYMMDD.session-handoff.md`).
 
 Note modele:
 - Les fichiers n'imposent pas un modele unique.

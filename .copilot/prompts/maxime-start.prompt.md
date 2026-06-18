@@ -11,7 +11,7 @@ Objectif:
 - Evaluer avant de coder.
 
 Etapes:
-1. Lire #file:.copilot/memory/session-handoff.md si present.
+1. Lire le dernier #file:.copilot/memory/YYYYMMDD.session-handoff.md si present.
 2. Executer git status et git log --oneline -10.
 3. Resumer l'etat en 5 points max.
 4. Poser la question de direction: continuer ou pivoter.

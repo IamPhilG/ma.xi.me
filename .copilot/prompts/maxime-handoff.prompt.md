@@ -9,10 +9,10 @@ Objectif:
 - Ecrire un handoff concis, utile, actionnable.
 
 Mise a jour cible:
-- #file:.copilot/memory/session-handoff.md
+- #file:.copilot/memory/YYYYMMDD.session-handoff.md (fichier du jour)
 
 Si le fichier n'existe pas:
-- Le creer puis ecrire le handoff.
+- Le creer (YYYYMMDD.session-handoff.md) puis ecrire le handoff.
 
 Contenu attendu:
 - Ce qui est fait
