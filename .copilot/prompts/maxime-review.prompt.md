@@ -2,7 +2,7 @@
 name: maxime-review
 description: Lance une revue ciblee avec le sous-agent maxime-reviewer.
 agent: maxime
-tools: [read_file, grep_search, file_search, agent]
+tools: [read_file, grep_search, file_search, runSubagent]
 ---
 
 Objectif:
