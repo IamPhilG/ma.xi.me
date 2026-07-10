@@ -102,6 +102,9 @@ partagé du repo; `AGENTS.md` l'adapte à la surface Codex.
 Les dossiers `skills/maxime-*` restent la source de vérité; `.agents/skills`
 est une projection versionnée pour Codex, vérifiée par `tools/check-codex-skills-sync.*`.
 
+Note installateur: `install/install.ps1` et `install/install.sh` sont désormais
+repo-only. Ils ne déploient plus de contenu global vers `~/.codex` ou `~/.agents`.
+
 ### GitHub Copilot
 ```
 repo source ma.xi.me/
@@ -119,6 +122,9 @@ repo cible/
 
 En scope `workspace`, Copilot doit lire la projection dans `.github/` du repo cible.
 Le dossier `.copilot/` du repo ma.xi.me reste la source d'édition des templates.
+Les installateurs rejettent explicitement les options globales (`target` autre que
+`copilot` et scope autre que `workspace`). Les backups de projection sont stockés
+dans le repo cible sous `./.bkp/copilot-install/`.
 
 ### Knowledge base (repo dédié)
 ```

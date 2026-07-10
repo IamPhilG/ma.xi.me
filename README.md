@@ -13,9 +13,9 @@ selon une boucle **SPEC → PLAN → LIVRABLE → VERIFY → REVIEW → IMPROVE*
 - `agents/maxime-reviewer.md` — sous-agent d'analyse (read-only via hook de garde-fou) pour les grosses revues
 - `skills/maxime-*/` — 7 workflows : start, plan, handoff, setup, retrofit, review, kb
 - `.agents/skills/maxime-*/` — skills repo-scoped pour Codex
-- `.codex/AGENTS.md` — modèle d'instructions globales Codex à installer dans `~/.codex/AGENTS.md`
+- `.codex/AGENTS.md` — référence Codex conservée dans le repo
 - `docs/` — architecture et spécifications de référence
-- `install/install.ps1` & `install/install.sh` — installe le contenu pour Claude, Copilot et/ou Codex selon la cible
+- `install/install.ps1` & `install/install.sh` — projection Copilot repo-scoped uniquement (`.github`)
 
 ## Installation
 
@@ -32,83 +32,41 @@ cd ma.xi.me
 
 # Choix 1:
 # Lance l'installeur sans modifier la policy de ta machine :
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1
-
-# Installer Copilot (scope user):
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target copilot -CopilotScope user
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target copilot -CopilotScope workspace
 
 # Installer Copilot (scope workspace .github):
 #  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target copilot -CopilotScope workspace -WorkspaceRoot C:\chemin\vers\repo-cible
 
-# Installer Claude + Copilot:
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target both -CopilotScope user
-
-# Installer Codex:
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target codex
-
-# Installer Claude + Copilot + Codex:
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target all -CopilotScope user
-
 # Ou choix 2:
 # Pour pré-visualiser ce qui sera fait, sans rien modifier :
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -WhatIf
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -WhatIf -Target copilot -CopilotScope workspace
 ```
 
-Puis dans Claude Code : `/memory`, `/agents`, `/` pour vérifier le chargement.
+Les anciennes options globales (`-Target claude|codex|both|all` et `-CopilotScope user`) sont refusées explicitement.
 
-L'installeur sauvegarde tout `~/.claude/agents` et `~/.claude/skills`
-existant dans `~/.claude/backups/` avant d'écrire, et ne copie que les
-fichiers `maxime*` — tes autres agents/skills ne sont pas touchés.
+Backups de projection Copilot : `./.bkp/copilot-install/<timestamp>/` dans le repo cible.
 
 ### macOS / Linux
 
     chmod +x install/install.sh
-    ./install/install.sh
-
-Pour installer Copilot (scope user) :
-
-  ./install/install.sh --target copilot --copilot-scope user
+    ./install/install.sh --target copilot --copilot-scope workspace
 
 Pour installer Copilot dans le repo (.github) :
 
   ./install/install.sh --target copilot --copilot-scope workspace --workspace-root /chemin/vers/repo-cible
 
-Pour installer Claude + Copilot :
-
-  ./install/install.sh --target both --copilot-scope user
-
-Pour installer Codex :
-
-  ./install/install.sh --target codex
-
-Pour installer Claude + Copilot + Codex :
-
-  ./install/install.sh --target all --copilot-scope user
-
 Pour pré-visualiser sans rien modifier :
 
-  ./install/install.sh --dry-run --target both --copilot-scope user
+  ./install/install.sh --dry-run --target copilot --copilot-scope workspace
 
-## Installation Codex
+Les anciennes options globales (`--target claude|codex|both|all` et `--copilot-scope user`) sont refusées explicitement.
 
-Deux niveaux sont supportés :
+## Codex (repo)
 
-1) Compatibilité repo
+Compatibilité repo conservée :
 - `AGENTS.md` est lu par Codex à la racine du repo.
 - `.agents/skills/maxime-*/SKILL.md` expose les workflows mA.xI.me comme skills repo-scoped.
 - `skills/maxime-*` reste la source de vérité; `.agents/skills/maxime-*` doit rester synchronisé.
-
-2) Installation globale
-- `install/install.ps1 -Target codex` ou `install/install.sh --target codex`
-  copie :
-  - `.codex/AGENTS.md` vers `~/.codex/AGENTS.md`
-  - `.agents/skills/maxime-*` vers `~/.agents/skills/`
-
-Backups Codex:
-- `~/.codex/backups/`
-
-Mémoire de session:
-- `.codex/memory/` reste locale et non versionnée.
 
 Vérifier la synchronisation des skills Codex :
 
@@ -134,26 +92,18 @@ Contenu principal :
 
 ### Deploiement via scripts
 
-Le deploiement Copilot est maintenant disponible via `install/install.ps1` et `install/install.sh`.
-Il reste optionnel et explicite via le choix `Target` / `--target`.
+Mode unique supporté : portée repo/workspace.
 
-Options recommandées :
-
-1) Portee repo (partagee)
-- Copier les fichiers vers (standard Copilot repo-scoped) :
+Les scripts copient les fichiers vers :
   - `./.github/copilot-instructions.md`
   - `./.github/agents/`
   - `./.github/prompts/`
 
-Important : en scope workspace, la cible est le repo courant (ou `-WorkspaceRoot` / `--workspace-root` si precise). Le repo ma.xi.me reste la source des fichiers `.copilot`.
+Important : la cible est le repo courant s'il est git, sinon fournir `-WorkspaceRoot` / `--workspace-root`.
+Le repo ma.xi.me reste la source des fichiers `.copilot`.
 
-2) Portee utilisateur (locale)
-- Agents : `~/.copilot/agents/`
-- Prompts : dossier utilisateur VS Code (`prompts`)
-- Instructions : `~/.copilot/instructions/maxime-global.instructions.md`
-
-Backups Copilot:
-- Toujours hors repo, sous `~/.copilot/backups/`
+Backups Copilot (locaux, non sync GitHub) :
+- `./.bkp/copilot-install/<timestamp>/`
 
 Memoire de session (sans partage Claude Code) :
 - `#file:.copilot/memory/YYYYMMDD.session-handoff.md`

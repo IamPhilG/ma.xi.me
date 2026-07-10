@@ -1,64 +1,22 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [ValidateSet('claude', 'copilot', 'codex', 'both', 'all')]
-    [string]$Target = 'claude',
+    [string]$Target = 'copilot',
 
     [ValidateSet('user', 'workspace')]
-    [string]$CopilotScope = 'user',
+    [string]$CopilotScope = 'workspace',
 
     [string]$WorkspaceRoot
 )
 
-# Installe mA.xI.me pour Claude, GitHub Copilot et/ou Codex.
-# - Claude: ~/.claude (CLAUDE.md + agents/skills maxime*)
-# - Copilot user: ~/.copilot/agents + ~/.copilot/instructions + dossier prompts VS Code
-# - Copilot workspace: ./.github (copilot-instructions + agents + prompts)
-# - Codex: ~/.codex/AGENTS.md + ~/.agents/skills/maxime*
+# Installe mA.xI.me en mode repo-only pour GitHub Copilot.
+# Les modes d'installation globaux ont ete retires.
 # Supporte -WhatIf (simulation) et -Confirm.
 $ErrorActionPreference = 'Stop'
 
 $srcRepoRoot = Split-Path $PSScriptRoot -Parent
-$workspaceRepoRoot = if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
-    (Get-Location).Path
-}
-else {
-    (Resolve-Path -Path $WorkspaceRoot).Path
-}
 $stamp = Get-Date -Format yyyyMMdd-HHmmss
 $dayStamp = Get-Date -Format yyyyMMdd
-
-function Install-Claude {
-    $target  = "$HOME\.claude"
-    $backups = "$target\backups"
-
-    if (!(Test-Path $target)) {
-        New-Item -ItemType Directory -Force -Path $target | Out-Null
-    }
-    else {
-        if (!(Test-Path $backups)) {
-            New-Item -ItemType Directory -Force -Path $backups | Out-Null
-        }
-        foreach ($d in @('agents', 'skills')) {
-            if (Test-Path "$target\$d") {
-                $bk = "$backups\$d-pre-maxime-$stamp"
-                New-Item -ItemType Directory -Force -Path $bk | Out-Null
-                Copy-Item "$target\$d\*" $bk -Recurse -Force
-            }
-        }
-        if (Test-Path "$target\CLAUDE.md") {
-            Copy-Item "$target\CLAUDE.md" "$backups\CLAUDE-pre-maxime-$stamp.md" -Force
-        }
-    }
-
-    Copy-Item "$srcRepoRoot\CLAUDE.md" "$target\CLAUDE.md" -Force
-    New-Item -ItemType Directory -Force -Path "$target\agents", "$target\skills" | Out-Null
-    Copy-Item "$srcRepoRoot\agents\maxime*" "$target\agents\" -Recurse -Force
-    Copy-Item "$srcRepoRoot\skills\maxime*" "$target\skills\" -Recurse -Force
-
-    if (-not $WhatIfPreference) {
-        Write-Host "mA.xI.me installe pour Claude dans $target." -ForegroundColor Green
-    }
-}
 
 function Backup-IfExists {
     param(
@@ -74,42 +32,69 @@ function Backup-IfExists {
     }
 }
 
-function Install-Copilot {
+function Resolve-GitRepoRoot {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StartPath
+    )
+
+    $resolvedStart = (Resolve-Path -Path $StartPath).Path
+    $detected = & git -C $resolvedStart rev-parse --show-toplevel 2>$null
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($detected)) {
+        return (Resolve-Path -Path $detected.Trim()).Path
+    }
+
+    return $null
+}
+
+function Resolve-WorkspaceRepoRoot {
+    if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
+        $autoRepoRoot = Resolve-GitRepoRoot -StartPath (Get-Location).Path
+        if ([string]::IsNullOrWhiteSpace($autoRepoRoot)) {
+            throw "Aucun repo git detecte dans le repertoire courant. Fournis -WorkspaceRoot <chemin-du-repo-cible>."
+        }
+
+        return $autoRepoRoot
+    }
+
+    $resolvedWorkspace = (Resolve-Path -Path $WorkspaceRoot).Path
+    $repoRoot = Resolve-GitRepoRoot -StartPath $resolvedWorkspace
+    if ([string]::IsNullOrWhiteSpace($repoRoot)) {
+        throw "Le chemin -WorkspaceRoot '$resolvedWorkspace' ne pointe pas vers un repo git valide."
+    }
+
+    return $repoRoot
+}
+
+function Assert-RepoOnlyMode {
+    if ($Target -ne 'copilot') {
+        throw "Installation globale retiree: -Target '$Target' n'est plus supporte. Utilise -Target copilot -CopilotScope workspace."
+    }
+
+    if ($CopilotScope -ne 'workspace') {
+        throw "Installation globale retiree: -CopilotScope '$CopilotScope' n'est plus supporte. Utilise -CopilotScope workspace."
+    }
+}
+
+function Install-CopilotWorkspace {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot
+    )
+
     $copilotSrc = Join-Path $srcRepoRoot '.copilot'
     if (!(Test-Path $copilotSrc)) {
         throw "Le dossier source .copilot est introuvable dans le repo."
     }
 
-    if ($CopilotScope -eq 'workspace') {
-        $ghRoot = Join-Path $workspaceRepoRoot '.github'
-        $agentsTarget = Join-Path $ghRoot 'agents'
-        $promptsTarget = Join-Path $ghRoot 'prompts'
-        $instructionsTarget = Join-Path $ghRoot 'copilot-instructions.md'
-        $memoryTarget = Join-Path $workspaceRepoRoot ".copilot\memory\$dayStamp.session-handoff.md"
-        $backupDir = "$HOME\.copilot\backups\$stamp"
-        $instructionsDir = $null
-
-        if ($workspaceRepoRoot -eq $srcRepoRoot) {
-            Write-Warning "Scope workspace cible le repo source mA.xI.me ($workspaceRepoRoot). Utilise -WorkspaceRoot <chemin-du-repo-cible> pour installer dans un autre repo."
-        }
-    }
-    else {
-        $agentsTarget = "$HOME\.copilot\agents"
-        if ([string]::IsNullOrWhiteSpace($env:APPDATA)) {
-            throw "APPDATA est introuvable. Impossible de determiner le dossier prompts VS Code."
-        }
-        $promptsTarget = Join-Path $env:APPDATA 'Code\User\prompts'
-        $instructionsDir = "$HOME\.copilot\instructions"
-        $instructionsTarget = Join-Path $instructionsDir 'maxime-global.instructions.md'
-        $memoryTarget = $null
-        $backupDir = "$HOME\.copilot\backups\$stamp"
-    }
+    $ghRoot = Join-Path $RepoRoot '.github'
+    $agentsTarget = Join-Path $ghRoot 'agents'
+    $promptsTarget = Join-Path $ghRoot 'prompts'
+    $instructionsTarget = Join-Path $ghRoot 'copilot-instructions.md'
+    $memoryTarget = Join-Path $RepoRoot ".copilot\memory\$dayStamp.session-handoff.md"
+    $backupDir = Join-Path $RepoRoot ".bkp\copilot-install\$stamp"
 
     New-Item -ItemType Directory -Force -Path $agentsTarget, $promptsTarget | Out-Null
-    if ($instructionsDir) {
-        New-Item -ItemType Directory -Force -Path $instructionsDir | Out-Null
-    }
-
     Backup-IfExists -Path $instructionsTarget -BackupDir $backupDir
 
     $srcAgents = Join-Path $copilotSrc 'agents'
@@ -128,11 +113,10 @@ function Install-Copilot {
 
     Copy-Item (Join-Path $copilotSrc 'copilot-instructions.md') $instructionsTarget -Force
 
-    if ($CopilotScope -eq 'workspace') {
-        $memoryDir = Split-Path $memoryTarget -Parent
-        New-Item -ItemType Directory -Force -Path $memoryDir | Out-Null
-        if (!(Test-Path $memoryTarget)) {
-            $defaultHandoff = @"
+    $memoryDir = Split-Path $memoryTarget -Parent
+    New-Item -ItemType Directory -Force -Path $memoryDir | Out-Null
+    if (!(Test-Path $memoryTarget)) {
+        $defaultHandoff = @"
 # Session Handoff
 
 ## Date
@@ -146,70 +130,23 @@ function Install-Copilot {
 - Confirmer les criteres d'acceptation.
 - Executer puis verifier.
 "@
-            Set-Content -Path $memoryTarget -Value $defaultHandoff -Encoding UTF8
-        }
+        Set-Content -Path $memoryTarget -Value $defaultHandoff -Encoding UTF8
     }
 
     if (-not $WhatIfPreference) {
-        Write-Host "mA.xI.me installe pour Copilot ($CopilotScope)." -ForegroundColor Green
+        Write-Host "mA.xI.me installe pour Copilot (workspace)." -ForegroundColor Green
+        Write-Host "Repo cible: $RepoRoot"
         Write-Host "Instructions: $instructionsTarget"
         Write-Host "Agents: $agentsTarget"
         Write-Host "Prompts: $promptsTarget"
-    }
-}
-
-function Install-Codex {
-    $codexHome = "$HOME\.codex"
-    $skillsTarget = "$HOME\.agents\skills"
-    $backupDir = "$codexHome\backups\$stamp"
-    $globalAgents = Join-Path $codexHome 'AGENTS.md'
-    $codexSrc = Join-Path $srcRepoRoot '.codex'
-    $repoSkillsSrc = Join-Path $srcRepoRoot '.agents\skills'
-
-    if (!(Test-Path $codexSrc)) {
-        throw "Le dossier source .codex est introuvable dans le repo."
-    }
-    if (!(Test-Path $repoSkillsSrc)) {
-        throw "Le dossier source .agents\skills est introuvable dans le repo."
-    }
-
-    & (Join-Path $srcRepoRoot 'tools\check-codex-skills-sync.ps1')
-
-    New-Item -ItemType Directory -Force -Path $codexHome, $skillsTarget | Out-Null
-
-    Backup-IfExists -Path $globalAgents -BackupDir $backupDir
-
-    if (Test-Path (Join-Path $skillsTarget 'maxime*')) {
-        $skillsBackup = Join-Path $backupDir 'skills'
-        New-Item -ItemType Directory -Force -Path $skillsBackup | Out-Null
-        Copy-Item (Join-Path $skillsTarget 'maxime*') $skillsBackup -Recurse -Force
-    }
-
-    Copy-Item (Join-Path $codexSrc 'AGENTS.md') $globalAgents -Force
-    Copy-Item (Join-Path $repoSkillsSrc 'maxime*') $skillsTarget -Recurse -Force
-
-    if (-not $WhatIfPreference) {
-        Write-Host "mA.xI.me installe pour Codex." -ForegroundColor Green
-        Write-Host "Instructions: $globalAgents"
-        Write-Host "Skills: $skillsTarget"
+        Write-Host "Backups locaux: $backupDir"
     }
 }
 
 try {
-    switch ($Target) {
-        'claude' { Install-Claude }
-        'copilot' { Install-Copilot }
-        'codex' { Install-Codex }
-        'both' {
-            Install-Claude
-            Install-Copilot
-        }
-        'all' {
-            Install-Claude
-            Install-Copilot
-            Install-Codex
-        }
-    }
+    Assert-RepoOnlyMode
+    $workspaceRepoRoot = Resolve-WorkspaceRepoRoot
+    Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot
 }
 catch {
     Write-Host "Echec de l'installation : $($_.Exception.Message)" -ForegroundColor Red
