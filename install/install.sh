@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Installe mA.xI.me en mode repo-only pour GitHub Copilot.
+# Installe mA.xI.me en mode repo-only pour Claude Code, GitHub Copilot et/ou Codex.
 # Les modes d'installation globaux ont ete retires.
 # Usage :
 #   ./install.sh [--dry-run] [--target claude|copilot|codex|both|all] [--copilot-scope user|workspace] [--workspace-root path]
 set -euo pipefail
 
 dry=0
-target="copilot"
+target="all"
 copilot_scope="workspace"
 workspace_root=""
 
@@ -62,13 +62,15 @@ src_repo_root="$(dirname "$script_dir")"
 stamp="$(date +%Y%m%d-%H%M%S)"
 day_stamp="$(date +%Y%m%d)"
 
-assert_repo_only_mode() {
-  if [ "$target" != "copilot" ]; then
-    echo "Installation globale retiree: --target '$target' n'est plus supporte. Utilise --target copilot --copilot-scope workspace." >&2
-    exit 1
-  fi
+target_includes_copilot() {
+  case "$target" in
+    copilot|both|all) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
-  if [ "$copilot_scope" != "workspace" ]; then
+assert_repo_only_mode() {
+  if target_includes_copilot && [ "$copilot_scope" != "workspace" ]; then
     echo "Installation globale retiree: --copilot-scope '$copilot_scope' n'est plus supporte. Utilise --copilot-scope workspace." >&2
     exit 1
   fi
@@ -97,6 +99,99 @@ backup_if_exists() {
   if [ -e "$src_path" ]; then
     run mkdir -p "$backup_dir"
     run cp -f "$src_path" "$backup_dir/$(basename "$src_path")"
+  fi
+}
+
+backup_dir_if_exists() {
+  local src_dir="$1"
+  local backup_dir="$2"
+  if [ -d "$src_dir" ]; then
+    run mkdir -p "$backup_dir"
+    run cp -R "$src_dir" "$backup_dir/"
+  fi
+}
+
+install_claude_workspace() {
+  local repo_root="$1"
+  local src_claude_md="$src_repo_root/CLAUDE.md"
+  local src_agents="$src_repo_root/agents"
+  local src_skills="$src_repo_root/skills"
+  local src_settings="$src_repo_root/.claude/settings.json"
+  local src_hooks="$src_repo_root/.claude/hooks"
+
+  if [ ! -f "$src_claude_md" ]; then
+    echo "Missing source file: $src_claude_md" >&2
+    exit 1
+  fi
+  if [ ! -d "$src_agents" ]; then
+    echo "Missing source directory: $src_agents" >&2
+    exit 1
+  fi
+  if [ ! -d "$src_skills" ]; then
+    echo "Missing source directory: $src_skills" >&2
+    exit 1
+  fi
+
+  local backup_dir="$repo_root/.bkp/claude-install/$stamp"
+  local claude_root="$repo_root/.claude"
+  local claude_md_target="$repo_root/CLAUDE.md"
+  local agents_target="$claude_root/agents"
+  local skills_target="$claude_root/skills"
+  local hooks_target="$claude_root/hooks"
+  local settings_target="$claude_root/settings.json"
+
+  run mkdir -p "$agents_target" "$skills_target" "$hooks_target"
+
+  backup_if_exists "$claude_md_target" "$backup_dir"
+  run cp -f "$src_claude_md" "$claude_md_target"
+
+  if [ -f "$src_settings" ]; then
+    backup_if_exists "$settings_target" "$backup_dir"
+    run cp -f "$src_settings" "$settings_target"
+  fi
+
+  if [ -d "$src_hooks" ]; then
+    for f in "$src_hooks"/*; do
+      [ -f "$f" ] || continue
+      dest="$hooks_target/$(basename "$f")"
+      backup_if_exists "$dest" "$backup_dir/hooks"
+      run cp -f "$f" "$dest"
+    done
+  fi
+
+  local has_agent=0
+  for f in "$src_agents"/maxime*.md; do
+    [ -f "$f" ] || continue
+    has_agent=1
+    dest="$agents_target/$(basename "$f")"
+    backup_if_exists "$dest" "$backup_dir/agents"
+    run cp -f "$f" "$dest"
+  done
+  if [ "$has_agent" -ne 1 ]; then
+    echo "Aucun agent maxime*.md trouve dans $src_agents" >&2
+    exit 1
+  fi
+
+  local has_skill=0
+  for d in "$src_skills"/maxime*; do
+    [ -d "$d" ] || continue
+    has_skill=1
+    dest="$skills_target/$(basename "$d")"
+    backup_dir_if_exists "$dest" "$backup_dir/skills"
+    run cp -R "$d" "$skills_target/"
+  done
+  if [ "$has_skill" -ne 1 ]; then
+    echo "Aucun skill maxime* trouve dans $src_skills" >&2
+    exit 1
+  fi
+
+  if [ "$dry" = 0 ]; then
+    echo -e "\033[32mmA.xI.me installe pour Claude (workspace).\033[0m"
+    echo "Repo cible: $repo_root"
+    echo "CLAUDE.md: $claude_md_target"
+    echo "Agents: $agents_target"
+    echo "Skills: $skills_target"
+    echo "Backups locaux: $backup_dir"
   fi
 }
 
@@ -167,6 +262,80 @@ EOF
   fi
 }
 
+install_codex_workspace() {
+  local repo_root="$1"
+  local codex_source="$src_repo_root/.codex/AGENTS.md"
+  local skills_source_root="$src_repo_root/.agents/skills"
+  local check_script="$src_repo_root/tools/check-codex-skills-sync.sh"
+
+  if [ ! -f "$codex_source" ]; then
+    echo "Missing source file: $codex_source" >&2
+    exit 1
+  fi
+  if [ ! -d "$skills_source_root" ]; then
+    echo "Missing source directory: $skills_source_root" >&2
+    exit 1
+  fi
+
+  if [ -f "$check_script" ]; then
+    if [ "$dry" = 1 ]; then
+      echo "[dry-run] bash $check_script"
+    else
+      bash "$check_script"
+    fi
+  fi
+
+  local backup_dir="$repo_root/.bkp/codex-install/$stamp"
+  local agents_target="$repo_root/AGENTS.md"
+  local skills_target_root="$repo_root/.agents/skills"
+
+  run mkdir -p "$skills_target_root"
+
+  backup_if_exists "$agents_target" "$backup_dir"
+  run cp -f "$codex_source" "$agents_target"
+
+  local has_skill=0
+  for d in "$skills_source_root"/maxime*; do
+    [ -d "$d" ] || continue
+    has_skill=1
+    dest="$skills_target_root/$(basename "$d")"
+    backup_dir_if_exists "$dest" "$backup_dir/skills"
+    run cp -R "$d" "$skills_target_root/"
+  done
+  if [ "$has_skill" -ne 1 ]; then
+    echo "Aucun skill maxime* trouve dans $skills_source_root" >&2
+    exit 1
+  fi
+
+  if [ "$dry" = 0 ]; then
+    echo -e "\033[32mmA.xI.me installe pour Codex (workspace).\033[0m"
+    echo "Repo cible: $repo_root"
+    echo "Instructions: $agents_target"
+    echo "Skills: $skills_target_root"
+    echo "Backups locaux: $backup_dir"
+  fi
+}
+
 assert_repo_only_mode
 workspace_repo_root="$(resolve_workspace_repo_root)"
-install_copilot_workspace "$workspace_repo_root"
+
+case "$target" in
+  claude)
+    install_claude_workspace "$workspace_repo_root"
+    ;;
+  copilot)
+    install_copilot_workspace "$workspace_repo_root"
+    ;;
+  codex)
+    install_codex_workspace "$workspace_repo_root"
+    ;;
+  both)
+    install_claude_workspace "$workspace_repo_root"
+    install_copilot_workspace "$workspace_repo_root"
+    ;;
+  all)
+    install_claude_workspace "$workspace_repo_root"
+    install_copilot_workspace "$workspace_repo_root"
+    install_codex_workspace "$workspace_repo_root"
+    ;;
+esac

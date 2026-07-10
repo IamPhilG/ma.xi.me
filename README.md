@@ -15,7 +15,7 @@ selon une boucle **SPEC → PLAN → LIVRABLE → VERIFY → REVIEW → IMPROVE*
 - `.agents/skills/maxime-*/` — skills repo-scoped pour Codex
 - `.codex/AGENTS.md` — référence Codex conservée dans le repo
 - `docs/` — architecture et spécifications de référence
-- `install/install.ps1` & `install/install.sh` — projection Copilot repo-scoped uniquement (`.github`)
+- `install/install.ps1` & `install/install.sh` — installation repo-only pour Claude, Copilot et Codex
 
 ## Installation
 
@@ -32,36 +32,80 @@ cd ma.xi.me
 
 # Choix 1:
 # Lance l'installeur sans modifier la policy de ta machine :
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target copilot -CopilotScope workspace
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target all -CopilotScope workspace
+
+# Installer Claude Code (repo courant):
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target claude
 
 # Installer Copilot (scope workspace .github):
 #  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target copilot -CopilotScope workspace -WorkspaceRoot C:\chemin\vers\repo-cible
 
+# Installer Codex (repo courant):
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target codex
+
+# Installer Claude + Copilot (repo courant):
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target both -CopilotScope workspace
+
+# Installer Claude + Copilot + Codex (repo courant):
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target all -CopilotScope workspace
+
 # Ou choix 2:
 # Pour pré-visualiser ce qui sera fait, sans rien modifier :
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -WhatIf -Target copilot -CopilotScope workspace
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -WhatIf -Target all -CopilotScope workspace
 ```
 
-Les anciennes options globales (`-Target claude|codex|both|all` et `-CopilotScope user`) sont refusées explicitement.
+Les modes globaux sont refusés explicitement. En particulier, `-CopilotScope user` n'est plus supporté.
 
-Backups de projection Copilot : `./.bkp/copilot-install/<timestamp>/` dans le repo cible.
+Backups de projection locaux (dans le repo cible):
+- `./.bkp/claude-install/<timestamp>/`
+- `./.bkp/copilot-install/<timestamp>/`
+- `./.bkp/codex-install/<timestamp>/`
 
 ### macOS / Linux
 
     chmod +x install/install.sh
-    ./install/install.sh --target copilot --copilot-scope workspace
+    ./install/install.sh --target all --copilot-scope workspace
+
+Installer Claude Code (repo courant):
+
+  ./install/install.sh --target claude
 
 Pour installer Copilot dans le repo (.github) :
 
   ./install/install.sh --target copilot --copilot-scope workspace --workspace-root /chemin/vers/repo-cible
 
+Installer Codex (repo courant):
+
+  ./install/install.sh --target codex
+
+Installer Claude + Copilot (repo courant):
+
+  ./install/install.sh --target both --copilot-scope workspace
+
+Installer Claude + Copilot + Codex (repo courant):
+
+  ./install/install.sh --target all --copilot-scope workspace
+
 Pour pré-visualiser sans rien modifier :
 
-  ./install/install.sh --dry-run --target copilot --copilot-scope workspace
+  ./install/install.sh --dry-run --target all --copilot-scope workspace
 
-Les anciennes options globales (`--target claude|codex|both|all` et `--copilot-scope user`) sont refusées explicitement.
+Les modes globaux sont refusés explicitement. En particulier, `--copilot-scope user` n'est plus supporté.
+
+## Installation Claude Code (repo-only)
+
+Projection dans le repo cible :
+- `CLAUDE.md`
+- `./.claude/settings.json`
+- `./.claude/hooks/*`
+- `./.claude/agents/maxime*.md`
+- `./.claude/skills/maxime*`
 
 ## Codex (repo)
+
+Projection repo-only via l'installeur (`-Target codex` / `--target codex`) :
+- `AGENTS.md` à la racine du repo cible
+- `./.agents/skills/maxime*`
 
 Compatibilité repo conservée :
 - `AGENTS.md` est lu par Codex à la racine du repo.
@@ -92,7 +136,7 @@ Contenu principal :
 
 ### Deploiement via scripts
 
-Mode unique supporté : portée repo/workspace.
+Mode supporté : portée repo/workspace uniquement.
 
 Les scripts copient les fichiers vers :
   - `./.github/copilot-instructions.md`

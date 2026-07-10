@@ -1,7 +1,7 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [ValidateSet('claude', 'copilot', 'codex', 'both', 'all')]
-    [string]$Target = 'copilot',
+    [string]$Target = 'all',
 
     [ValidateSet('user', 'workspace')]
     [string]$CopilotScope = 'workspace',
@@ -9,7 +9,7 @@ param(
     [string]$WorkspaceRoot
 )
 
-# Installe mA.xI.me en mode repo-only pour GitHub Copilot.
+# Installe mA.xI.me en mode repo-only pour Claude Code, GitHub Copilot et/ou Codex.
 # Les modes d'installation globaux ont ete retires.
 # Supporte -WhatIf (simulation) et -Confirm.
 $ErrorActionPreference = 'Stop'
@@ -29,6 +29,20 @@ function Backup-IfExists {
         New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
         $name = Split-Path $Path -Leaf
         Copy-Item $Path (Join-Path $BackupDir $name) -Force
+    }
+}
+
+function Backup-DirectoryIfExists {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [Parameter(Mandatory = $true)]
+        [string]$BackupDir
+    )
+    if (Test-Path $Path) {
+        New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
+        $name = Split-Path $Path -Leaf
+        Copy-Item $Path (Join-Path $BackupDir $name) -Recurse -Force
     }
 }
 
@@ -66,13 +80,95 @@ function Resolve-WorkspaceRepoRoot {
     return $repoRoot
 }
 
+function Target-IncludesCopilot {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SelectedTarget
+    )
+
+    return $SelectedTarget -in @('copilot', 'both', 'all')
+}
+
 function Assert-RepoOnlyMode {
-    if ($Target -ne 'copilot') {
-        throw "Installation globale retiree: -Target '$Target' n'est plus supporte. Utilise -Target copilot -CopilotScope workspace."
+    if ((Target-IncludesCopilot -SelectedTarget $Target) -and $CopilotScope -ne 'workspace') {
+        throw "Installation globale retiree: -CopilotScope '$CopilotScope' n'est plus supporte. Utilise -CopilotScope workspace."
+    }
+}
+
+function Install-ClaudeWorkspace {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot
+    )
+
+    $srcClaudeMd = Join-Path $srcRepoRoot 'CLAUDE.md'
+    $srcAgents = Join-Path $srcRepoRoot 'agents'
+    $srcSkills = Join-Path $srcRepoRoot 'skills'
+    if (!(Test-Path $srcClaudeMd)) {
+        throw "Le fichier source CLAUDE.md est introuvable dans le repo."
+    }
+    if (!(Test-Path $srcAgents)) {
+        throw "Le dossier source agents est introuvable dans le repo."
+    }
+    if (!(Test-Path $srcSkills)) {
+        throw "Le dossier source skills est introuvable dans le repo."
     }
 
-    if ($CopilotScope -ne 'workspace') {
-        throw "Installation globale retiree: -CopilotScope '$CopilotScope' n'est plus supporte. Utilise -CopilotScope workspace."
+    $backupDir = Join-Path $RepoRoot ".bkp\claude-install\$stamp"
+    $claudeMdTarget = Join-Path $RepoRoot 'CLAUDE.md'
+    $claudeRootTarget = Join-Path $RepoRoot '.claude'
+    $agentsTarget = Join-Path $claudeRootTarget 'agents'
+    $skillsTarget = Join-Path $claudeRootTarget 'skills'
+    $hooksTarget = Join-Path $claudeRootTarget 'hooks'
+    $settingsTarget = Join-Path $claudeRootTarget 'settings.json'
+
+    New-Item -ItemType Directory -Force -Path $agentsTarget, $skillsTarget, $hooksTarget | Out-Null
+
+    Backup-IfExists -Path $claudeMdTarget -BackupDir $backupDir
+    Copy-Item $srcClaudeMd $claudeMdTarget -Force
+
+    $srcSettings = Join-Path $srcRepoRoot '.claude\settings.json'
+    if (Test-Path $srcSettings) {
+        Backup-IfExists -Path $settingsTarget -BackupDir $backupDir
+        Copy-Item $srcSettings $settingsTarget -Force
+    }
+
+    $srcHooks = Join-Path $srcRepoRoot '.claude\hooks'
+    if (Test-Path $srcHooks) {
+        Get-ChildItem -Path $srcHooks -File | ForEach-Object {
+            $dest = Join-Path $hooksTarget $_.Name
+            Backup-IfExists -Path $dest -BackupDir (Join-Path $backupDir 'hooks')
+            Copy-Item $_.FullName $dest -Force
+        }
+    }
+
+    $agentFiles = Get-ChildItem -Path $srcAgents -Filter 'maxime*.md' -File
+    if ($agentFiles.Count -eq 0) {
+        throw "Aucun agent maxime*.md trouve dans le dossier source agents."
+    }
+    $agentFiles | ForEach-Object {
+        $dest = Join-Path $agentsTarget $_.Name
+        Backup-IfExists -Path $dest -BackupDir (Join-Path $backupDir 'agents')
+        Copy-Item $_.FullName $dest -Force
+    }
+
+    $skillDirs = Get-ChildItem -Path $srcSkills -Filter 'maxime*' -Directory
+    if ($skillDirs.Count -eq 0) {
+        throw "Aucun skill maxime* trouve dans le dossier source skills."
+    }
+    $skillDirs | ForEach-Object {
+        $dest = Join-Path $skillsTarget $_.Name
+        Backup-DirectoryIfExists -Path $dest -BackupDir (Join-Path $backupDir 'skills')
+        Copy-Item $_.FullName $skillsTarget -Recurse -Force
+    }
+
+    if (-not $WhatIfPreference) {
+        Write-Host "mA.xI.me installe pour Claude (workspace)." -ForegroundColor Green
+        Write-Host "Repo cible: $RepoRoot"
+        Write-Host "CLAUDE.md: $claudeMdTarget"
+        Write-Host "Agents: $agentsTarget"
+        Write-Host "Skills: $skillsTarget"
+        Write-Host "Backups locaux: $backupDir"
     }
 }
 
@@ -143,10 +239,73 @@ function Install-CopilotWorkspace {
     }
 }
 
+function Install-CodexWorkspace {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot
+    )
+
+    $codexSource = Join-Path $srcRepoRoot '.codex\AGENTS.md'
+    $skillsSourceRoot = Join-Path $srcRepoRoot '.agents\skills'
+    if (!(Test-Path $codexSource)) {
+        throw "Le fichier source .codex/AGENTS.md est introuvable dans le repo."
+    }
+    if (!(Test-Path $skillsSourceRoot)) {
+        throw "Le dossier source .agents/skills est introuvable dans le repo."
+    }
+
+    $checkScript = Join-Path $srcRepoRoot 'tools\check-codex-skills-sync.ps1'
+    if (Test-Path $checkScript) {
+        & $checkScript
+    }
+
+    $backupDir = Join-Path $RepoRoot ".bkp\codex-install\$stamp"
+    $agentsTarget = Join-Path $RepoRoot 'AGENTS.md'
+    $skillsTargetRoot = Join-Path $RepoRoot '.agents\skills'
+
+    New-Item -ItemType Directory -Force -Path $skillsTargetRoot | Out-Null
+
+    Backup-IfExists -Path $agentsTarget -BackupDir $backupDir
+    Copy-Item $codexSource $agentsTarget -Force
+
+    $skillDirs = Get-ChildItem -Path $skillsSourceRoot -Filter 'maxime*' -Directory
+    if ($skillDirs.Count -eq 0) {
+        throw "Aucun skill maxime* trouve dans le dossier source .agents/skills."
+    }
+
+    $skillDirs | ForEach-Object {
+        $dest = Join-Path $skillsTargetRoot $_.Name
+        Backup-DirectoryIfExists -Path $dest -BackupDir (Join-Path $backupDir 'skills')
+        Copy-Item $_.FullName $skillsTargetRoot -Recurse -Force
+    }
+
+    if (-not $WhatIfPreference) {
+        Write-Host "mA.xI.me installe pour Codex (workspace)." -ForegroundColor Green
+        Write-Host "Repo cible: $RepoRoot"
+        Write-Host "Instructions: $agentsTarget"
+        Write-Host "Skills: $skillsTargetRoot"
+        Write-Host "Backups locaux: $backupDir"
+    }
+}
+
 try {
     Assert-RepoOnlyMode
     $workspaceRepoRoot = Resolve-WorkspaceRepoRoot
-    Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot
+
+    switch ($Target) {
+        'claude' { Install-ClaudeWorkspace -RepoRoot $workspaceRepoRoot }
+        'copilot' { Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot }
+        'codex' { Install-CodexWorkspace -RepoRoot $workspaceRepoRoot }
+        'both' {
+            Install-ClaudeWorkspace -RepoRoot $workspaceRepoRoot
+            Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot
+        }
+        'all' {
+            Install-ClaudeWorkspace -RepoRoot $workspaceRepoRoot
+            Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot
+            Install-CodexWorkspace -RepoRoot $workspaceRepoRoot
+        }
+    }
 }
 catch {
     Write-Host "Echec de l'installation : $($_.Exception.Message)" -ForegroundColor Red
