@@ -66,7 +66,7 @@ La structure cible ci-dessous est un **modèle de référence**, pas un plan app
 ```
 .claude/
 ├── CLAUDE.md          (contexte repo : but réel, terminologie, contraintes, stratégie git)
-├── memory/  (session-handoff.md, decisions-log.md, dead-ends.md)
+├── memory/  (YYYYMMDD.session-handoff.md, decisions-log.md, dead-ends.md)
 ├── specs/
 ├── skills/
 └── agents/            (sous-agents read-only spécifiques au repo)

@@ -10,7 +10,7 @@ Analyse lourde ou isolée qu'on veut sortir du contexte principal : gros diff,
 audit d'un module, revue de conformité, lecture de nombreux fichiers.
 
 ## Comment
-1. Invoquer le sous-agent `maxime-reviewer` (défini dans .claude/agents/),
+1. Invoquer le sous-agent `maxime-reviewer` (défini dans `.claude/agents/` du repo courant),
    read-only, avec la cible précise (fichiers, diff, périmètre).
 2. Le sous-agent retourne : résumé / risques / fichiers concernés / recommandation.
    Il ne modifie RIEN.

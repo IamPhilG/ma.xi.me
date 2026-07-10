@@ -215,7 +215,7 @@ Le système doit pouvoir se simplifier au fil du temps et le démontrer
 {repo}/.claude/
 ├── CLAUDE.md                  ← contexte du repo (le QUOI)
 ├── memory/
-│   ├── session-handoff.md     ← écrasé à chaque fin de session
+│   ├── YYYYMMDD.session-handoff.md  ← un fichier par session (accumulation locale)
 │   ├── decisions-log.md       ← append-only
 │   └── dead-ends.md           ← append-only
 ├── specs/
@@ -280,36 +280,35 @@ frontmatter `memory: user|project|local`, ce qui valide les sous-agents
 
 ---
 
-## 8. PLAN D'IMPLÉMENTATION (par phases)
+## 8. ÉTAT D'IMPLÉMENTATION
 
-### Phase 1 — Fondations (fait aujourd'hui)
+### Phase 1 — Fondations ✅
 
-- [x] CLAUDE.md global dans ~/.claude/
-- [x] mA.xI.me-ARCHITECTURE.md dans ~/.claude/
-- [ ] Validation croisée par ChatGPT / autres moteurs
+- [x] CLAUDE.md méthode dans le repo (installé via install.ps1 / install.sh)
+- [x] Agent `maxime` + `maxime-reviewer` (agents/)
+- [x] 7 skills mA.xI.me-* (skills/ + .agents/skills/ pour Codex)
+- [x] Adaptateur GitHub Copilot (.copilot/ → .github/ à l'install)
+- [x] Adaptateur Codex (.codex/ + .agents/skills/)
+- [x] Installers repo-only avec backup horodaté (install.ps1 + install.sh)
+- [x] Hook anti-commandes-destructrices (block-destructive-bash.sh)
+- [x] Validation croisée par Codex, Gemini, Claude Code, Copilot (2026-06-17)
 
-### Phase 2 — Commandes mA.xI.me
+### Phase 2 — Knowledge base
 
-- [ ] Créer les skills mA.xI.me-* dans ~/.claude/skills/
-- [ ] Tester /maxime-setup sur un repo de test propre
+- [ ] Créer/peupler le repo `OurITRes/knowledge-base` (index.md, active/, archived/)
+- [ ] Connecter via submodule `knowledge-base/` dans les repos consommateurs
+  (le skill `maxime-kb` est prêt — il attend juste la KB)
 
-### Phase 3 — Knowledge base
+### Phase 3 — Déploiement sur repos réels
 
-- [ ] Créer le repo knowledge-base/ avec index.md
-- [ ] Migrer le contenu AD DS existant dans ad-ds/
-- [ ] Connecter via les CLAUDE.md des repos
+- [ ] Lancer `maxime-setup` sur un vrai projet
+- [ ] Valider le cycle complet : start → travail → handoff daté → reprise
 
-### Phase 4 — Premier repo réel
+### Phase 4 — Boucle d'auto-optimisation (usage)
 
-- [ ] Lancer maxime-setup sur un vrai projet AD DS
-- [ ] Valider le cycle complet : start → travail → handoff → reprise
-
-### Phase 5 — Mobile
-
-- [ ] Activer Remote Control sur le Windows 11
-- [ ] Tester le pilotage depuis iPad
-
-### Phase 6 — Boucle d'auto-optimisation
-
-- [ ] Laisser tourner 1-2 semaines
+- [ ] Laisser tourner plusieurs semaines
 - [ ] Vérifier que le CLAUDE.md s'allège et que les dead-ends s'accumulent utilement
+
+### Hors périmètre de ce repo
+
+- Mobile / Remote Control : fonctionnalité Claude, non implémentable ici

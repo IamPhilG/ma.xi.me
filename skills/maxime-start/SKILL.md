@@ -10,7 +10,7 @@ Rappel: Ce skill applique la boucle globale CLAUDE.md au démarrage d'une sessio
 Exécute dans l'ordre :
 
 ## 1. Charger le contexte
-- Lire `.claude/memory/session-handoff.md` s'il existe.
+- Lire le dernier `.claude/memory/YYYYMMDD.session-handoff.md` (tri lexicographique du nom = tri chronologique) s'il existe.
 - `git status` puis `git log --oneline -10`.
 - Lire le `CLAUDE.md` du repo courant.
 
