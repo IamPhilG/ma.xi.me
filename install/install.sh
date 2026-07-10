@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Installe mA.xI.me pour Claude, GitHub Copilot et/ou Codex.
 # Usage :
-#   ./install.sh [--dry-run] [--target claude|copilot|codex|both|all] [--copilot-scope user|workspace]
+#   ./install.sh [--dry-run] [--target claude|copilot|codex|both|all] [--copilot-scope user|workspace] [--workspace-root path]
 set -euo pipefail
 
 dry=0
 target="claude"
 copilot_scope="user"
+workspace_root=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -26,6 +27,14 @@ while [ $# -gt 0 ]; do
         exit 1
       fi
       copilot_scope="${1:-}"
+      ;;
+    --workspace-root)
+      shift
+      if [ $# -eq 0 ] || [ -z "${1:-}" ] || [ "${1#--}" != "$1" ]; then
+        echo "Missing value for --workspace-root" >&2
+        exit 1
+      fi
+      workspace_root="${1:-}"
       ;;
     *)
       echo "Unknown option: $1" >&2
@@ -48,7 +57,12 @@ fi
 run() { if [ "$dry" = 1 ]; then echo "[dry-run] $*"; else "$@"; fi; }
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-src="$(dirname "$script_dir")"
+src_repo_root="$(dirname "$script_dir")"
+if [ -n "$workspace_root" ]; then
+  workspace_repo_root="$(cd "$workspace_root" && pwd)"
+else
+  workspace_repo_root="$(pwd)"
+fi
 stamp="$(date +%Y%m%d-%H%M%S)"
 day_stamp="$(date +%Y%m%d)"
 
@@ -79,10 +93,10 @@ install_claude() {
     fi
   fi
 
-  run cp -f "$src/CLAUDE.md" "$target_dir/CLAUDE.md"
+  run cp -f "$src_repo_root/CLAUDE.md" "$target_dir/CLAUDE.md"
   run mkdir -p "$target_dir/agents" "$target_dir/skills"
-  run cp -R "$src"/agents/maxime* "$target_dir/agents/"
-  run cp -R "$src"/skills/maxime* "$target_dir/skills/"
+  run cp -R "$src_repo_root"/agents/maxime* "$target_dir/agents/"
+  run cp -R "$src_repo_root"/skills/maxime* "$target_dir/skills/"
 
   if [ "$dry" = 0 ]; then
     echo -e "\033[32mmA.xI.me installe pour Claude dans $target_dir.\033[0m"
@@ -90,7 +104,7 @@ install_claude() {
 }
 
 install_copilot() {
-  local copilot_src="$src/.copilot"
+  local copilot_src="$src_repo_root/.copilot"
   if [ ! -d "$copilot_src" ]; then
     echo "Missing source directory: $copilot_src" >&2
     exit 1
@@ -98,12 +112,16 @@ install_copilot() {
 
   local agents_target prompts_target instructions_target instructions_dir backup_dir memory_target
   if [ "$copilot_scope" = "workspace" ]; then
-    agents_target="$src/.github/agents"
-    prompts_target="$src/.github/prompts"
-    instructions_target="$src/.github/copilot-instructions.md"
+    agents_target="$workspace_repo_root/.github/agents"
+    prompts_target="$workspace_repo_root/.github/prompts"
+    instructions_target="$workspace_repo_root/.github/copilot-instructions.md"
     instructions_dir=""
-    memory_target="$src/.copilot/memory/$day_stamp.session-handoff.md"
+    memory_target="$workspace_repo_root/.copilot/memory/$day_stamp.session-handoff.md"
     backup_dir="$HOME/.copilot/backups/$stamp"
+
+    if [ "$workspace_repo_root" = "$src_repo_root" ]; then
+      echo "Warning: workspace scope cible le repo source mA.xI.me ($workspace_repo_root). Utilise --workspace-root <repo-cible> pour un autre repo." >&2
+    fi
   else
     agents_target="$HOME/.copilot/agents"
     if [ "$(uname -s)" = "Darwin" ]; then
@@ -177,8 +195,8 @@ install_codex() {
   local skills_target="$HOME/.agents/skills"
   local backup_dir="$codex_home/backups/$stamp"
   local global_agents="$codex_home/AGENTS.md"
-  local codex_src="$src/.codex"
-  local repo_skills_src="$src/.agents/skills"
+  local codex_src="$src_repo_root/.codex"
+  local repo_skills_src="$src_repo_root/.agents/skills"
 
   if [ ! -d "$codex_src" ]; then
     echo "Missing source directory: $codex_src" >&2
@@ -189,7 +207,7 @@ install_codex() {
     exit 1
   fi
 
-  bash "$src/tools/check-codex-skills-sync.sh"
+  bash "$src_repo_root/tools/check-codex-skills-sync.sh"
 
   run mkdir -p "$codex_home" "$skills_target"
 

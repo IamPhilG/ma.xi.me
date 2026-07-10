@@ -9,8 +9,8 @@ Objectif:
 - Initialiser une base propre et minimale.
 
 Checklist:
-1. Verifier presence de .copilot/.
-2. Verifier agents et prompts requis.
+1. Verifier presence de .github/.
+2. Verifier .github/copilot-instructions.md, .github/agents/ et .github/prompts/.
 3. Ajouter la memoire session-handoff.
 4. Valider que le repository contient les fichiers de base.
 

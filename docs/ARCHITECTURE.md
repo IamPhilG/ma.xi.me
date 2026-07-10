@@ -102,6 +102,24 @@ partagé du repo; `AGENTS.md` l'adapte à la surface Codex.
 Les dossiers `skills/maxime-*` restent la source de vérité; `.agents/skills`
 est une projection versionnée pour Codex, vérifiée par `tools/check-codex-skills-sync.*`.
 
+### GitHub Copilot
+```
+repo source ma.xi.me/
+└── .copilot/                    # source de vérité versionnée (templates)
+  ├── copilot-instructions.md
+  ├── agents/*.agent.md
+  └── prompts/*.prompt.md
+
+repo cible/
+└── .github/                     # projection workspace/repo-scoped pour Copilot
+  ├── copilot-instructions.md
+  ├── agents/*.agent.md
+  └── prompts/*.prompt.md
+```
+
+En scope `workspace`, Copilot doit lire la projection dans `.github/` du repo cible.
+Le dossier `.copilot/` du repo ma.xi.me reste la source d'édition des templates.
+
 ### Knowledge base (repo dédié)
 ```
 knowledge-base/

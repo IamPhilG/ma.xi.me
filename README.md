@@ -38,7 +38,7 @@ cd ma.xi.me
 #  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target copilot -CopilotScope user
 
 # Installer Copilot (scope workspace .github):
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target copilot -CopilotScope workspace
+#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target copilot -CopilotScope workspace -WorkspaceRoot C:\chemin\vers\repo-cible
 
 # Installer Claude + Copilot:
 #  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target both -CopilotScope user
@@ -71,7 +71,7 @@ Pour installer Copilot (scope user) :
 
 Pour installer Copilot dans le repo (.github) :
 
-  ./install/install.sh --target copilot --copilot-scope workspace
+  ./install/install.sh --target copilot --copilot-scope workspace --workspace-root /chemin/vers/repo-cible
 
 Pour installer Claude + Copilot :
 
@@ -140,10 +140,12 @@ Il reste optionnel et explicite via le choix `Target` / `--target`.
 Options recommandées :
 
 1) Portee repo (partagee)
-- Copier les fichiers vers :
+- Copier les fichiers vers (standard Copilot repo-scoped) :
   - `./.github/copilot-instructions.md`
   - `./.github/agents/`
   - `./.github/prompts/`
+
+Important : en scope workspace, la cible est le repo courant (ou `-WorkspaceRoot` / `--workspace-root` si precise). Le repo ma.xi.me reste la source des fichiers `.copilot`.
 
 2) Portee utilisateur (locale)
 - Agents : `~/.copilot/agents/`
