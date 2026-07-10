@@ -13,7 +13,7 @@ Rappel: Ce skill applique la boucle globale CLAUDE.md à la clôture et au trans
 l'absence de secrets, proposer un `git add` ciblé. L'utilisateur décide.
 
 ## 2. Écrire le handoff
-Écraser `.claude/memory/session-handoff.md` :
+Créer (jamais écraser) `.claude/memory/YYYYMMDD.session-handoff.md` du jour :
 ```markdown
 # Session Handoff — {DATE}
 ## Completed today

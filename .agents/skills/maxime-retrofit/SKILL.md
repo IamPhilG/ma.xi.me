@@ -24,7 +24,7 @@ Distinct de `maxime-setup` (initialise un repo vierge/nouveau).
 ## 2. Auditer les écarts vs standards mA.xI.me
 Checklist complète :
 - [ ] `.claude/CLAUDE.md` présent et adapté au repo (contexte, stack, commandes)
-- [ ] `.claude/memory/session-handoff.md` (persistance inter-sessions)
+- [ ] `.claude/memory/YYYYMMDD.session-handoff.md` (dernier fichier, tri lexicographique)
 - [ ] `.claude/memory/decisions-log.md` (traçabilité des décisions)
 - [ ] `.claude/memory/dead-ends.md` (mémoire des impasses)
 - [ ] Commandes test / lint / build documentées dans CLAUDE.md
