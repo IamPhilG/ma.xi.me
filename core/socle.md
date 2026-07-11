@@ -1,11 +1,3 @@
----
-applyTo: "**"
----
-
-# mA.xI.me - adapter for GitHub Copilot
-
-Generated from core/socle.md. Do not edit directly.
-
 # mA.xI.me — Socle commun
 
 mA.xI.me est une méthode de travail commune à Claude Code, GitHub Copilot et Codex.
@@ -51,9 +43,3 @@ Cet état est local au repository et doit être ignoré par Git. Les outils lise
 ## Portabilité et limites
 
 Ce socle décrit le comportement attendu dans les trois outils. Les mécanismes techniques propres à un hôte ne sont pas universels : un hook Claude, un agent Copilot ou une capacité de sous-agent Codex sont des extensions explicitement identifiées par leur adaptateur.
-
-## GitHub Copilot extension
-
-- The maxime agent is available under .github/agents/.
-- Workflows are available under .github/prompts/.
-- Capabilities and permissions depend on VS Code and the Copilot extension; do not claim a Claude hook or a host capability that is unavailable.

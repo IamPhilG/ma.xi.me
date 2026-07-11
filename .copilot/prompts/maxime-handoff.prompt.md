@@ -1,24 +1,18 @@
 ---
 name: maxime-handoff
-description: Cloture un bloc de travail et met a jour le handoff de session.
+description: mA.xI.me workflow generated from the canonical source.
 agent: maxime
-tools: [read_file, create_file, apply_patch]
+tools: [read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file]
 ---
 
-Objectif:
-- Ecrire un handoff concis, utile, actionnable.
+# mA.xI.me — Handoff
 
-Mise a jour cible:
-- #file:.copilot/memory/YYYYMMDD.session-handoff.md (fichier du jour)
+À utiliser à la fin d'un bloc de travail, sur une décision structurante ou avant l'arrêt d'une session.
 
-Si le fichier n'existe pas:
-- Le creer (YYYYMMDD.session-handoff.md) puis ecrire le handoff.
+1. Exécuter `git status` ; ne jamais lancer de staging global automatique.
+2. Créer, sans écraser, `.wip/maxime/memory/YYYYMMDD.session-handoff.md`.
+3. Y noter : terminé, en cours, blocages, décisions, fichiers modifiés, contexte critique et prochaine action précise.
+4. Ajouter les décisions et impasses utiles aux journaux locaux correspondants.
+5. Indiquer l'objectif atteint, partiel ou non et la meilleure reprise.
 
-Contenu attendu:
-- Ce qui est fait
-- Ce qui reste
-- Risques / blocages
-- Prochaine action recommandee
-
-Regles:
-- Factuel, court, sans duplication inutile.
+Le handoff est concis, factuel et actionnable. Il ne doit pas être mis à jour après chaque micro-tâche.

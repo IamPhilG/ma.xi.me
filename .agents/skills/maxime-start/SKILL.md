@@ -1,35 +1,18 @@
 ---
 name: maxime-start
-description: Ouvre une session de TRAVAIL mA.xI.me. À utiliser dès qu'on commence à implémenter/modifier du code, ou quand une discussion bascule en demande de code.
-allowed-tools: Read, Glob, Grep, Bash
+description: mA.xI.me workflow generated from the canonical source.
+allowed-tools: Read, Glob, Grep, Bash, Write, Edit
 ---
-# mA.xI.me — Démarrage de session (TRAVAIL)
 
-Rappel: Ce skill applique la boucle globale CLAUDE.md au démarrage d'une session de travail.
+# mA.xI.me — Démarrage de session
 
-Exécute dans l'ordre :
+À utiliser lorsqu'une demande devient une tâche de travail ou de modification.
 
-## 1. Charger le contexte
-- Lire le dernier `.claude/memory/YYYYMMDD.session-handoff.md` (tri lexicographique du nom = tri chronologique) s'il existe.
-- `git status` puis `git log --oneline -10`.
-- Lire le `CLAUDE.md` du repo courant.
+1. Lire le handoff le plus récent dans `.wip/maxime/memory/`, s'il existe.
+2. Exécuter `git status` et `git log --oneline -10`.
+3. Résumer l'état connu en cinq points maximum.
+4. Demander si l'objectif est de continuer ou de changer de direction.
+5. Produire une évaluation pré-session : état réel, recommandation, risques et taille S/M/L.
+6. Pour une tâche précise, passer à `maxime-plan` avant toute écriture.
 
-## 2. Interviewer l'utilisateur
-> "Bonjour utilisteur. Voici ce que je sais de la dernière session :
-> [résumé du handoff, 5 bullets max]
-> But de la session d'aujourd'hui ? Continuer, ou nouvelle direction ?"
-
-## 3. Évaluation pré-session (avant tout code)
-```
-## 📋 Évaluation pré-session
-État réel : ✅ complété / 🔄 en cours / ❌ bloqué
-Recommandation : [ ] continuer (S/M/L)  [ ] pivoter vers X (S/M/L)  [ ] refactorer d'abord
-Risques si on continue tel quel : ...
-➡️ Attente d'approbation avant de commencer.
-```
-Estimations en ordre de grandeur (S / M / L), jamais en heures précises.
-
-## 4. Orienter vers la suite
-Si l'utilisateur identifie une tâche précise à implémenter → invoquer `/maxime-plan`.
-Si le repo est un repo existant à mettre en conformité → invoquer `/maxime-retrofit`.
-Ne jamais écrire de code sans spec approuvée (règle inviolable).
+Ne pas modifier de fichier avant l'approbation explicite de la spécification quand la tâche est significative.

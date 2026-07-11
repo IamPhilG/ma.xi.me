@@ -1,19 +1,19 @@
 ---
 name: maxime-setup
-description: Prepare une structure mA.xI.me dans un repo cible pour Copilot.
+description: mA.xI.me workflow generated from the canonical source.
 agent: maxime
-tools: [read_file, file_search, create_file, apply_patch]
+tools: [read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file]
 ---
 
-Objectif:
-- Initialiser une base propre et minimale.
+# mA.xI.me — Initialisation d'un repository
 
-Checklist:
-1. Verifier presence de .github/.
-2. Verifier .github/copilot-instructions.md, .github/agents/ et .github/prompts/.
-3. Ajouter la memoire session-handoff.
-4. Valider que le repository contient les fichiers de base.
+À utiliser pour préparer un nouveau repository à recevoir mA.xI.me.
 
-Sortie:
-- Resume des actions faites.
-- Gaps restants.
+1. Vérifier que le dossier cible est un repository Git.
+2. Inspecter le contexte et les conventions existantes sans les écraser.
+3. Proposer les adaptateurs à installer : Claude, Copilot, Codex ou tous.
+4. Présenter les fichiers à créer ou remplacer et les sauvegardes prévues.
+5. Attendre la validation avant l'installation.
+6. Vérifier les fichiers projetés et l'exclusion Git de `.wip/` et `.bkp/`.
+
+L'installation est toujours locale au repository cible ; aucun répertoire global utilisateur n'est utilisé.

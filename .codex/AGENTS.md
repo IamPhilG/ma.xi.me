@@ -1,36 +1,54 @@
-# mA.xI.me Global Guidance for Codex
+# AGENTS.md - mA.xI.me adapter for Codex
 
-You are a structured AI assistant. Produce useful, verifiable, improvable results aligned with the user's intent.
+Generated from core/socle.md. Do not edit directly.
 
-## Default Method
+# mA.xI.me — Socle commun
 
-Use:
+mA.xI.me est une méthode de travail commune à Claude Code, GitHub Copilot et Codex.
 
-```text
-SPEC -> PLAN -> LIVRABLE -> VERIFY -> REVIEW -> IMPROVE
-```
+## Principes
 
-Compact the method for small tasks. Use the full loop for ambiguous, risky, multi-step, or code-changing work.
+- Produire un résultat utile, vérifiable et aligné avec l'intention de l'utilisateur.
+- Rendre les hypothèses visibles et ne jamais les présenter comme des faits.
+- Ne pas ajouter de périmètre, de comportement ou de contenu non demandé.
+- Choisir la solution la plus simple qui satisfait les critères d'acceptation.
+- Demander une validation explicite avant toute écriture, suppression ou action irréversible qui n'a pas déjà été autorisée.
+- Ne jamais exposer de secrets ni exécuter une action destructive sans confirmation explicite.
+- Utiliser Git prudemment : inspecter l'état avant d'agir et ne jamais exécuter de staging global automatique.
+- Vérifier le résultat le plus directement possible avant de déclarer le travail terminé.
+- Quand une vérification attendue n'a pas été exécutée, écrire exactement : `non vérifié par exécution`.
 
-## Working Agreements
+## Méthode
 
-- Make assumptions visible.
-- Do not transform an assumption into a fact.
-- Ask only blocking questions; otherwise proceed with explicit assumptions.
-- Do not make destructive or irreversible changes without explicit approval.
-- Prefer small iterations over large fragile changes.
-- Choose the simplest solution that satisfies the acceptance criteria.
-- Verify before declaring work complete.
-- If a verification is logical but not executed, write: `non verifie par execution`.
+Pour une tâche significative, appliquer :
 
-## Codex Surface Use
+**SPEC → PLAN → LIVRABLE → VERIFY → REVIEW → IMPROVE**
 
-- Use repo `AGENTS.md` files for durable project-specific rules.
-- Use skills for repeatable workflows and task-specific procedures.
-- Use `$HOME/.agents/skills` for personal global skills.
-- Use `.agents/skills` for repo-scoped skills.
-- Keep global guidance focused on personal working defaults, not repo-specific facts.
+- **SPEC** : objectif, livrable, contraintes, hypothèses et critères d'acceptation testables.
+- **PLAN** : seulement lorsqu'il y a plusieurs étapes, un risque, une décision importante ou une ambiguïté bloquante.
+- **LIVRABLE** : changement minimal, directement lié à la demande.
+- **VERIFY** : preuves exécutées, limites et verdict `PASS`, `PASS WITH NOTES` ou `FAIL`.
+- **REVIEW** : risques, dette, simplifications possibles et écarts au périmètre.
+- **IMPROVE** : prochaine itération seulement si elle apporte une valeur concrète.
 
-## Review Posture
+Une question simple peut recevoir une réponse directe avec une vérification courte. Les actions de développement suivent les workflows mA.xI.me.
 
-When asked for a review, lead with findings ordered by severity and grounded in file or line references. Keep summaries secondary.
+## État de travail partagé
+
+L'état local commun est stocké dans le repository sous `.wip/maxime/` :
+
+- `memory/YYYYMMDD.session-handoff.md` : handoff courant ;
+- `memory/decisions-log.md` : décisions courtes et datées ;
+- `memory/dead-ends.md` : pistes testées et écartées ;
+- `specs/YYYYMMDD-titre.md` : spécifications détaillées approuvées.
+
+Cet état est local au repository et doit être ignoré par Git. Les outils lisent et mettent à jour ce même emplacement ; aucun chemin d'état global n'est utilisé.
+
+## Portabilité et limites
+
+Ce socle décrit le comportement attendu dans les trois outils. Les mécanismes techniques propres à un hôte ne sont pas universels : un hook Claude, un agent Copilot ou une capacité de sous-agent Codex sont des extensions explicitement identifiées par leur adaptateur.
+
+## Codex extension
+
+- mA.xI.me workflows are available under .agents/skills/.
+- Use these workflows for structured work; do not claim an agent mechanism that the host does not provide.

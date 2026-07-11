@@ -1,10 +1,3 @@
----
-name: maxime-kb
-description: mA.xI.me workflow generated from the canonical source.
-agent: maxime
-tools: [read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file]
----
-
 # mA.xI.me — Knowledge base
 
 À utiliser lorsqu'une knowledge base versionnée est disponible pour un thème pertinent.

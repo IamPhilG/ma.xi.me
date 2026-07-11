@@ -1,37 +1,54 @@
-# mA.xI.me for Codex
+# AGENTS.md - mA.xI.me adapter for Codex
 
-This repository adapts mA.xI.me for Claude Code, GitHub Copilot, and Codex.
+Generated from core/socle.md. Do not edit directly.
 
-## Repository Expectations
+# mA.xI.me — Socle commun
 
-- Treat `CLAUDE.md` as the shared methodological base for this repo.
-- Use the loop `SPEC -> PLAN -> LIVRABLE -> VERIFY -> REVIEW -> IMPROVE` for significant work.
-- Make assumptions explicit and do not present assumptions as facts.
-- Do not make destructive or irreversible changes without explicit user approval.
-- Keep changes small, justified, and directly tied to the requested scope.
-- Run the most relevant verification available before calling work complete.
-- If a logical verification was not executed, write: `non verifie par execution`.
+mA.xI.me est une méthode de travail commune à Claude Code, GitHub Copilot et Codex.
 
-## Codex-Specific Guidance
+## Principes
 
-- Prefer repo instructions in this file for durable Codex behavior.
-- Prefer `.agents/skills/maxime-*` for reusable workflows that Codex should discover in this repo.
-- Use global guidance from `~/.codex/AGENTS.md` only for personal defaults across repos.
-- Use `$HOME/.agents/skills` for global Codex skills.
+- Produire un résultat utile, vérifiable et aligné avec l'intention de l'utilisateur.
+- Rendre les hypothèses visibles et ne jamais les présenter comme des faits.
+- Ne pas ajouter de périmètre, de comportement ou de contenu non demandé.
+- Choisir la solution la plus simple qui satisfait les critères d'acceptation.
+- Demander une validation explicite avant toute écriture, suppression ou action irréversible qui n'a pas déjà été autorisée.
+- Ne jamais exposer de secrets ni exécuter une action destructive sans confirmation explicite.
+- Utiliser Git prudemment : inspecter l'état avant d'agir et ne jamais exécuter de staging global automatique.
+- Vérifier le résultat le plus directement possible avant de déclarer le travail terminé.
+- Quand une vérification attendue n'a pas été exécutée, écrire exactement : `non vérifié par exécution`.
 
-## Project Map
+## Méthode
 
-- `CLAUDE.md`: universal method and reliability rules.
-- `agents/`: Claude Code agents.
-- `skills/`: Claude Code skills and the source copied to global Codex skills.
-- `.copilot/`: GitHub Copilot instructions, agents, prompts, and local memory template.
-- `.agents/skills/`: repo-scoped Codex skills.
-- `.codex/AGENTS.md`: source template for global Codex guidance.
-- `install/`: installers for Claude, Copilot, and Codex.
-- `tools/check-codex-skills-sync.*`: checks that Codex skills match the source skills.
+Pour une tâche significative, appliquer :
 
-## Verification
+**SPEC → PLAN → LIVRABLE → VERIFY → REVIEW → IMPROVE**
 
-- For installer changes, run the relevant dry-run or `-WhatIf` mode.
-- For skill changes, run `powershell -File tools\check-codex-skills-sync.ps1` or `bash tools/check-codex-skills-sync.sh`.
-- For documentation-only changes, verify links, paths, and install commands by inspection.
+- **SPEC** : objectif, livrable, contraintes, hypothèses et critères d'acceptation testables.
+- **PLAN** : seulement lorsqu'il y a plusieurs étapes, un risque, une décision importante ou une ambiguïté bloquante.
+- **LIVRABLE** : changement minimal, directement lié à la demande.
+- **VERIFY** : preuves exécutées, limites et verdict `PASS`, `PASS WITH NOTES` ou `FAIL`.
+- **REVIEW** : risques, dette, simplifications possibles et écarts au périmètre.
+- **IMPROVE** : prochaine itération seulement si elle apporte une valeur concrète.
+
+Une question simple peut recevoir une réponse directe avec une vérification courte. Les actions de développement suivent les workflows mA.xI.me.
+
+## État de travail partagé
+
+L'état local commun est stocké dans le repository sous `.wip/maxime/` :
+
+- `memory/YYYYMMDD.session-handoff.md` : handoff courant ;
+- `memory/decisions-log.md` : décisions courtes et datées ;
+- `memory/dead-ends.md` : pistes testées et écartées ;
+- `specs/YYYYMMDD-titre.md` : spécifications détaillées approuvées.
+
+Cet état est local au repository et doit être ignoré par Git. Les outils lisent et mettent à jour ce même emplacement ; aucun chemin d'état global n'est utilisé.
+
+## Portabilité et limites
+
+Ce socle décrit le comportement attendu dans les trois outils. Les mécanismes techniques propres à un hôte ne sont pas universels : un hook Claude, un agent Copilot ou une capacité de sous-agent Codex sont des extensions explicitement identifiées par leur adaptateur.
+
+## Codex extension
+
+- mA.xI.me workflows are available under .agents/skills/.
+- Use these workflows for structured work; do not claim an agent mechanism that the host does not provide.

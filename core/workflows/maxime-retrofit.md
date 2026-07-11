@@ -1,10 +1,3 @@
----
-name: maxime-retrofit
-description: mA.xI.me workflow generated from the canonical source.
-agent: maxime
-tools: [read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file]
----
-
 # mA.xI.me — Mise en conformité d'un repository existant
 
 À utiliser pour évaluer un repository existant avant d'y installer ou d'y adapter mA.xI.me.
