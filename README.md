@@ -19,7 +19,28 @@ selon une boucle **SPEC → PLAN → LIVRABLE → VERIFY → REVIEW → IMPROVE*
 
 ## Installation
 
-L'installateur déploie mA.xI.me **dans un repo git uniquement**. Il ne modifie jamais les répertoires globaux de Claude Code, Copilot ou Codex.
+L'installateur déploie mA.xI.me **dans un repo git uniquement**.
+Il ne modifie jamais les répertoires globaux de Claude Code, Copilot ou Codex.
+
+### Prérequis
+
+- **Git Bash** et **jq** sont requis pour le hook de garde-fou
+  (`.claude/hooks/block-destructive-bash.sh`). Sur Windows, Git Bash est
+  fourni avec Git for Windows ; installer `jq` via `winget install jqlang.jq`.
+  (macOS : `brew install jq` · Linux : `apt install jq`).
+
+- **Vérifie que `jq` est bien trouvé** après installation :
+
+      jq --version
+
+  Sur Windows, redémarre ton terminal après `winget install` pour que `jq`
+  entre dans le PATH.
+
+> ⚠️ **Sans `jq`, le garde-fou n'offre aucune protection.** Le hook le détecte
+> et l'affiche (`garde-fou DÉSACTIVÉ`) au lieu d'échouer en silence — mais il
+> n'empêchera aucune commande destructrice. Installe `jq` avant de t'y fier.
+
+### Étapes d'installation
 
 1. Clone ce dépôt et place-toi à sa racine.
 2. Lance l’installateur depuis le repo cible, ou indique ce repo avec `WorkspaceRoot` / `--workspace-root`.
@@ -31,7 +52,7 @@ L'installateur déploie mA.xI.me **dans un repo git uniquement**. Il ne modifie 
 | `copilot` | `.github/copilot-instructions.md`, agents et prompts |
 | `codex` | `AGENTS.md` et `.agents/skills/maxime*` |
 | `both` | Claude Code + Copilot |
-| `all` | Claude Code + Copilot + Codex (défaut) |
+| `all` (défaut) | Claude Code + Copilot + Codex |
 
 ### Windows
 
@@ -77,9 +98,6 @@ Depuis la racine de mA.xI.me, avec un repo cible explicite :
 
 Ajoute `--dry-run` à l’une de ces commandes pour prévisualiser les changements sans écrire.
 
-Pour installer une seule cible, remplace `all` par `claude`, `copilot`, `codex` ou `both`.
-
-Les fichiers existants remplacés sont sauvegardés dans `./.bkp/<cible>-install/<timestamp>/` dans le repo cible. Le mode global et `CopilotScope user` ne sont pas pris en charge.
 
 ### Sources et vérification
 
@@ -99,23 +117,6 @@ Note modele:
 - Les fichiers n'imposent pas un modele unique.
 - Recommandation: laisser le modele actif de l'utilisateur, et n'imposer un modele
   que sur un agent/prompt precis si une tache le justifie.
-
-## Prérequis
-- **Git Bash** et **jq** sont requis pour le hook de garde-fou
-  (`.claude/hooks/block-destructive-bash.sh`). Sur Windows, Git Bash est
-  fourni avec Git for Windows ; installer `jq` via `winget install jqlang.jq`.
-  (macOS : `brew install jq` · Linux : `apt install jq`).
-
-- **Vérifie que `jq` est bien trouvé** après installation :
-
-      jq --version
-
-  Sur Windows, redémarre ton terminal après `winget install` pour que `jq`
-  entre dans le PATH.
-
-> ⚠️ **Sans `jq`, le garde-fou n'offre aucune protection.** Le hook le détecte
-> et l'affiche (`garde-fou DÉSACTIVÉ`) au lieu d'échouer en silence — mais il
-> n'empêchera aucune commande destructrice. Installe `jq` avant de t'y fier.
 
 ## Principe à deux niveaux
 - **Socle** (`CLAUDE.md`) : garde-fous toujours actifs (branches, git prudent,
