@@ -3,11 +3,21 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(dirname "$script_dir")"
+if [ ! -d "$repository_root/core" ] && [ -d "$(dirname "$repository_root")/core" ]; then
+  repository_root="$(dirname "$repository_root")"
+fi
+repository_root="$(cd "$repository_root" && pwd)"
+[ -d "$repository_root/core" ] || { echo "Repository root not found from '$script_dir' (missing core/)." >&2; exit 1; }
 temp_root="$(mktemp -d)"
 trap 'rm -rf "$temp_root"' EXIT
 
 cp -R "$repository_root/core" "$temp_root/core"
-cp "$repository_root/tools/generate-adapters.sh" "$temp_root/generate-adapters.sh"
+generator_path="$repository_root/tools/generate-adapters.sh"
+if [ ! -f "$generator_path" ]; then
+  generator_path="$repository_root/.wip/tools/generate-adapters.sh"
+fi
+[ -f "$generator_path" ] || { echo "Unable to find generate-adapters.sh under tools/ or .wip/tools/." >&2; exit 1; }
+cp "$generator_path" "$temp_root/generate-adapters.sh"
 bash "$temp_root/generate-adapters.sh" "$temp_root" >/dev/null
 
 relative_paths=(

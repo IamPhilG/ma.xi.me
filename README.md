@@ -7,6 +7,7 @@ mA.xI.me projette les mêmes règles et workflows dans chaque outil, selon la bo
 **SPEC → PLAN → LIVRABLE → VERIFY → REVIEW → IMPROVE**.
 
 ## Contenu
+
 - `core/` — source canonique du socle et des 7 workflows
 - `CLAUDE.md`, `.copilot/` et `.codex/` — adaptateurs générés pour les trois outils
 - `agents/maxime.md` et `.copilot/agents/maxime.agent.md` — orchestrateur mA.xI.me selon les capacités de l'hôte
@@ -53,9 +54,16 @@ Il ne modifie jamais les répertoires globaux de Claude Code, Copilot ou Codex.
 | `both` | Claude Code + Copilot |
 | `all` (défaut) | Claude Code + Copilot + Codex |
 
-L'installateur initialise également l'état partagé local `.wip/maxime/` (handoffs,
-spécifications et journaux) et ajoute `/.wip/` ainsi que `/.bkp/` au fichier Git
-local `info/exclude` du repo cible. Ces données ne sont donc pas synchronisées.
+L'installateur initialise également l'état partagé local `.wip/` :
+
+- `.wip/memory/` (handoffs)
+- `.wip/specs/` (spécifications)
+- `.wip/adr/` (décisions)
+- `.wip/results/` (impasses et résultats)
+- `.wip/tools/` (sorties d'outils)
+
+Il ajoute aussi `/.wip/` et `/.bkp/` au fichier Git local `info/exclude` du repo
+cible. Ces données ne sont donc pas synchronisées.
 
 ### Windows
 
@@ -120,6 +128,7 @@ bash tools/check-adapter-sync.sh
 ```
 
 Note modele:
+
 - Les fichiers n'imposent pas un modele unique.
 - Recommandation: laisser le modele actif de l'utilisateur, et n'imposer un modele
   que sur un agent/prompt precis si une tache le justifie.
@@ -129,9 +138,10 @@ Note modele:
 - **Socle mA.xI.me** : règles et workflows portables issus de `core/`, projetés dans
   `CLAUDE.md` pour Claude Code, `.github/copilot-instructions.md` pour Copilot et
   `AGENTS.md` pour Codex lors de l'installation.
-- **Orchestrateur mA.xI.me** : point d'entrée du travail structuré. Claude et Copilot
-  disposent d'un agent `maxime` ; Codex utilise les workflows projetés dans
-  `.agents/skills/`.
+- **Orchestrateur mA.xI.me** : point d'entrée du travail structuré. Les identités
+  techniques sont `maxi-claude` (Claude), `maxi-copilot` (Copilot) et
+  `maxi-codex` (Codex, logique workflow sans picker d'agent). Les workflows restent
+  projetés dans `.agents/skills/` pour Codex.
 - **Extensions d'hôte** : les hooks Claude ou les sous-agents disponibles dans Copilot
   complètent le socle, sans être faussement présentés comme universels.
 
@@ -139,4 +149,5 @@ Un VSIX est prévu en phase 2 seulement : il automatisera l'installation dans le
 workspace et l'expérience Copilot après validation de ce fonctionnement manuel.
 
 ## Licence
+
 Voir `LICENSE`.

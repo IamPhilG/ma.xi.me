@@ -39,12 +39,13 @@ Une question simple peut recevoir une réponse directe avec une vérification co
 
 ## État de travail partagé
 
-L'état local commun est stocké dans le repository sous `.wip/maxime/` :
+L'état local commun est stocké dans le repository sous `.wip/` :
 
 - `memory/YYYYMMDD.session-handoff.md` : handoff courant ;
-- `memory/decisions-log.md` : décisions courtes et datées ;
-- `memory/dead-ends.md` : pistes testées et écartées ;
-- `specs/YYYYMMDD-titre.md` : spécifications détaillées approuvées.
+- `specs/<fonction-ou-feature>.md` : spécifications détaillées approuvées ;
+- `adr/decisions-log.md` : décisions courtes et datées ;
+- `results/dead-ends.md` : pistes testées et écartées ;
+- `tools/` : sorties de scripts et diagnostics locaux.
 
 Cet état est local au repository et doit être ignoré par Git. Les outils lisent et mettent à jour ce même emplacement ; aucun chemin d'état global n'est utilisé.
 
@@ -54,6 +55,6 @@ Ce socle décrit le comportement attendu dans les trois outils. Les mécanismes 
 
 ## GitHub Copilot extension
 
-- The maxime agent is available under .github/agents/.
+- The maxi-copilot agent is available under .github/agents/.
 - Workflows are available under .github/prompts/.
 - Capabilities and permissions depend on VS Code and the Copilot extension; do not claim a Claude hook or a host capability that is unavailable.

@@ -7,7 +7,17 @@ $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $RepositoryRoot = Split-Path $PSScriptRoot -Parent
 }
-$root = (Resolve-Path $RepositoryRoot).Path
+$resolvedRoot = (Resolve-Path $RepositoryRoot).Path
+if (!(Test-Path (Join-Path $resolvedRoot 'core'))) {
+    $parentRoot = Split-Path $resolvedRoot -Parent
+    if (Test-Path (Join-Path $parentRoot 'core')) {
+        $resolvedRoot = $parentRoot
+    }
+    else {
+        throw "Repository root not found from '$RepositoryRoot' (missing core/)."
+    }
+}
+$root = $resolvedRoot
 $coreRoot = Join-Path $root 'core'
 $workflowRoot = Join-Path $coreRoot 'workflows'
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -37,7 +47,7 @@ $socle
 ## Claude Code extension
 
 - mA.xI.me skills are available under `.claude/skills/`.
-- The `maxime` orchestrator is available under `.claude/agents/`.
+- The `maxi-claude` orchestrator is available under `.claude/agents/`.
 - The hook configured in `.claude/settings.json`, when present, is Claude-specific protection and is not a portable guarantee.
 "@
 $codexAdapter = @"
@@ -50,6 +60,7 @@ $socle
 ## Codex extension
 
 - mA.xI.me workflows are available under `.agents/skills/`.
+- The logical Codex orchestrator identity is `maxi-codex` (workflow-based, no picker agent).
 - Use these workflows for structured work; do not claim an agent mechanism that the host does not provide.
 "@
 $copilotAdapter = @"
@@ -65,7 +76,7 @@ $socle
 
 ## GitHub Copilot extension
 
-- The `maxime` agent is available under `.github/agents/`.
+- The `maxi-copilot` agent is available under `.github/agents/`.
 - Workflows are available under `.github/prompts/`.
 - Capabilities and permissions depend on VS Code and the Copilot extension; do not claim a Claude hook or a host capability that is unavailable.
 "@
@@ -82,11 +93,11 @@ mA.xI.me is the single orchestrator for structured work. It applies the common c
 
 For significant work, start with `maxime-start`, create a specification with `maxime-plan`, wait for approval before writes, then conclude with verification and a handoff when needed.
 
-The shared state is always `.wip/maxime/`. Host-specific extensions are additions and do not replace the common core.
+The shared state is always `.wip/`. Host-specific extensions are additions and do not replace the common core.
 "@
 $claudeAgent = @"
 ---
-name: maxime
+name: maxi-claude
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
 tools: Read, Glob, Grep, Bash, Write, Edit
 ---
@@ -95,10 +106,10 @@ $orchestratorBody
 "@
 $copilotAgent = @"
 ---
-name: maxime
+name: maxi-copilot
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
 tools: [read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file, runSubagent]
-agents: [maxime-reviewer, maxime-reviewer-shell]
+agents: [maxi-copilot-reviewer, maxi-copilot-reviewer-shell]
 user-invocable: true
 ---
 
@@ -128,7 +139,7 @@ $body
 ---
 name: $name
 description: mA.xI.me workflow generated from the canonical source.
-agent: maxime
+agent: maxi-copilot
 tools: $copilotTools
 ---
 

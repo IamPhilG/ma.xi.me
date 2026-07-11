@@ -4,6 +4,15 @@ param()
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
+if (!(Test-Path (Join-Path $repoRoot 'skills'))) {
+    $parentRoot = Split-Path $repoRoot -Parent
+    if (Test-Path (Join-Path $parentRoot 'skills')) {
+        $repoRoot = $parentRoot
+    }
+    else {
+        throw "Repository root not found from '$PSScriptRoot' (missing skills/)."
+    }
+}
 $sourceRoot = Join-Path $repoRoot 'skills'
 $targetRoot = Join-Path $repoRoot '.agents\skills'
 $problems = New-Object System.Collections.Generic.List[string]

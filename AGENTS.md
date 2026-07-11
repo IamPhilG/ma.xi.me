@@ -35,12 +35,13 @@ Une question simple peut recevoir une réponse directe avec une vérification co
 
 ## État de travail partagé
 
-L'état local commun est stocké dans le repository sous `.wip/maxime/` :
+L'état local commun est stocké dans le repository sous `.wip/` :
 
 - `memory/YYYYMMDD.session-handoff.md` : handoff courant ;
-- `memory/decisions-log.md` : décisions courtes et datées ;
-- `memory/dead-ends.md` : pistes testées et écartées ;
-- `specs/YYYYMMDD-titre.md` : spécifications détaillées approuvées.
+- `specs/<fonction-ou-feature>.md` : spécifications détaillées approuvées ;
+- `adr/decisions-log.md` : décisions courtes et datées ;
+- `results/dead-ends.md` : pistes testées et écartées ;
+- `tools/` : sorties de scripts et diagnostics locaux.
 
 Cet état est local au repository et doit être ignoré par Git. Les outils lisent et mettent à jour ce même emplacement ; aucun chemin d'état global n'est utilisé.
 
@@ -51,4 +52,5 @@ Ce socle décrit le comportement attendu dans les trois outils. Les mécanismes 
 ## Codex extension
 
 - mA.xI.me workflows are available under .agents/skills/.
+- The logical Codex orchestrator identity is maxi-codex (workflow-based, no picker agent).
 - Use these workflows for structured work; do not claim an agent mechanism that the host does not provide.

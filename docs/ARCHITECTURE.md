@@ -45,11 +45,11 @@ la vérification avant clôture. Il est projeté dans :
 
 | Hôte | Instructions durables | Workflows | Orchestrateur |
 | --- | --- | --- | --- |
-| Claude Code | `CLAUDE.md` | `.claude/skills/` | `.claude/agents/maxime.md` |
-| GitHub Copilot | `.github/copilot-instructions.md` | `.github/prompts/` | `.github/agents/maxime.agent.md` |
-| Codex | `AGENTS.md` | `.agents/skills/` | workflows natifs, sans faux agent |
+| Claude Code | `CLAUDE.md` | `.claude/skills/` | `.claude/agents/maxime.md` (`maxi-claude`) |
+| GitHub Copilot | `.github/copilot-instructions.md` | `.github/prompts/` | `.github/agents/maxime.agent.md` (`maxi-copilot`) |
+| Codex | `AGENTS.md` | `.agents/skills/` | `maxi-codex` (identité logique, sans picker agent) |
 
-`maxime` est l'unique orchestrateur de travail structuré. Les agents de revue et le
+Le socle `maxime` est l'unique orchestrateur de travail structuré. Les agents de revue et le
 hook Claude sont des extensions facultatives d'hôte : ils ne sont pas une promesse de
 protection équivalente dans Copilot ou Codex.
 
@@ -58,13 +58,16 @@ protection équivalente dans Copilot ou Codex.
 Tous les outils lisent et écrivent le même état local :
 
 ```text
-.wip/maxime/
+.wip/
   memory/
     YYYYMMDD.session-handoff.md
-    decisions-log.md
-    dead-ends.md
   specs/
-    YYYYMMDD-titre.md
+    <fonction-ou-feature>.md
+  adr/
+    decisions-log.md
+  results/
+    dead-ends.md
+  tools/
 ```
 
 L'installateur crée ces dossiers et ajoute `/.wip/` ainsi que `/.bkp/` au fichier

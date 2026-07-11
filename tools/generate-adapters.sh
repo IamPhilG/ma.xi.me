@@ -4,6 +4,10 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="${1:-$(dirname "$script_dir")}"
 root="$(cd "$root" && pwd)"
+if [ ! -d "$root/core" ] && [ -d "$(dirname "$root")/core" ]; then
+  root="$(cd "$(dirname "$root")" && pwd)"
+fi
+[ -d "$root/core" ] || { echo "Repository root not found from '$root' (missing core/)." >&2; exit 1; }
 core_root="$root/core"
 workflow_root="$core_root/workflows"
 
@@ -30,7 +34,7 @@ $socle
 ## Claude Code extension
 
 - mA.xI.me skills are available under .claude/skills/.
-- The maxime orchestrator is available under .claude/agents/.
+- The maxi-claude orchestrator is available under .claude/agents/.
 - The hook configured in .claude/settings.json, when present, is Claude-specific protection and is not a portable guarantee.
 EOF
 write_file "$root/AGENTS.md" <<EOF
@@ -43,6 +47,7 @@ $socle
 ## Codex extension
 
 - mA.xI.me workflows are available under .agents/skills/.
+- The logical Codex orchestrator identity is maxi-codex (workflow-based, no picker agent).
 - Use these workflows for structured work; do not claim an agent mechanism that the host does not provide.
 EOF
 write_file "$root/.codex/AGENTS.md" <<EOF
@@ -55,6 +60,7 @@ $socle
 ## Codex extension
 
 - mA.xI.me workflows are available under .agents/skills/.
+- The logical Codex orchestrator identity is maxi-codex (workflow-based, no picker agent).
 - Use these workflows for structured work; do not claim an agent mechanism that the host does not provide.
 EOF
 write_file "$root/.copilot/copilot-instructions.md" <<EOF
@@ -70,7 +76,7 @@ $socle
 
 ## GitHub Copilot extension
 
-- The maxime agent is available under .github/agents/.
+- The maxi-copilot agent is available under .github/agents/.
 - Workflows are available under .github/prompts/.
 - Capabilities and permissions depend on VS Code and the Copilot extension; do not claim a Claude hook or a host capability that is unavailable.
 EOF
@@ -81,10 +87,10 @@ mA.xI.me is the single orchestrator for structured work. It applies the common c
 
 For significant work, start with maxime-start, create a specification with maxime-plan, wait for approval before writes, then conclude with verification and a handoff when needed.
 
-The shared state is always .wip/maxime/. Host-specific extensions are additions and do not replace the common core.'
+The shared state is always .wip/. Host-specific extensions are additions and do not replace the common core.'
 write_file "$root/agents/maxime.md" <<EOF
 ---
-name: maxime
+name: maxi-claude
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
 tools: Read, Glob, Grep, Bash, Write, Edit
 ---
@@ -93,10 +99,10 @@ $orchestrator_body
 EOF
 write_file "$root/.copilot/agents/maxime.agent.md" <<EOF
 ---
-name: maxime
+name: maxi-copilot
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
 tools: [read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file, runSubagent]
-agents: [maxime-reviewer, maxime-reviewer-shell]
+agents: [maxi-copilot-reviewer, maxi-copilot-reviewer-shell]
 user-invocable: true
 ---
 
@@ -130,7 +136,7 @@ EOF
 ---
 name: $name
 description: mA.xI.me workflow generated from the canonical source.
-agent: maxime
+agent: maxi-copilot
 tools: $copilot_tools
 ---
 

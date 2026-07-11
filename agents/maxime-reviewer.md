@@ -1,5 +1,5 @@
 ---
-name: maxime-reviewer
+name: maxi-claude-reviewer
 description: Analyse read-only de fichiers volumineux, diffs ou modules. À utiliser pour sortir une revue lourde du contexte principal. Ne modifie jamais rien.
 tools: Read, Grep, Glob, Bash
 permissionMode: plan

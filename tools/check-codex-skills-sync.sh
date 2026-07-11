@@ -3,6 +3,11 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(dirname "$script_dir")"
+if [ ! -d "$repo_root/skills" ] && [ -d "$(dirname "$repo_root")/skills" ]; then
+  repo_root="$(dirname "$repo_root")"
+fi
+repo_root="$(cd "$repo_root" && pwd)"
+[ -d "$repo_root/skills" ] || { echo "Repository root not found from '$script_dir' (missing skills/)." >&2; exit 1; }
 source_root="$repo_root/skills"
 target_root="$repo_root/.agents/skills"
 problems=0

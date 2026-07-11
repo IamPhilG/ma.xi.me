@@ -1,14 +1,13 @@
 # Hiérarchie & chargement des CLAUDE.md (Claude Code)
 
-Source officielle (lue et vérifiée) :
-https://code.claude.com/docs/en/memory
+Source officielle (lue et vérifiée) : [claude memory docs](https://code.claude.com/docs/en/memory)
 
 ---
 
 ## 1. Les 4 niveaux (par ordre de chargement, du plus large au plus spécifique)
 
 | Scope | Emplacement | Rôle | Partagé avec |
-|-------|-------------|------|--------------|
+| - | - | - | - |
 | **Managed policy** | macOS : `/Library/Application Support/ClaudeCode/CLAUDE.md`<br>Linux/WSL : `/etc/claude-code/CLAUDE.md`<br>Windows : `C:\Program Files\ClaudeCode\CLAUDE.md` | Instructions imposées par l'organisation (IT/DevOps) : standards, sécurité, conformité | Tous les utilisateurs de la machine/org |
 | **User instructions** | `~/.claude/CLAUDE.md` | Préférences personnelles, tous projets | Moi seul (tous projets) |
 | **Project instructions** | `./CLAUDE.md` ou `./.claude/CLAUDE.md` | Instructions partagées de l'équipe | L'équipe via le contrôle de source |
@@ -36,6 +35,7 @@ Les `CLAUDE.md` des sous-dossiers (sous le cwd) ne sont PAS chargés au lancemen
 ils se chargent à la demande quand Claude lit un fichier de ce sous-dossier.
 
 ### ⚠️ Piège vécu (2026-06-16)
+
 Le niveau "Project" est relatif au cwd. Lancer Claude Code depuis un dossier qui
 n'est pas un repo git (ex : `C:\Users\<username>` ou `...\source\repos`) fait que
 `./CLAUDE.md` se rabat sur le `CLAUDE.md` de CE dossier. C'est ce qui avait créé
@@ -53,6 +53,7 @@ Project pointe au bon endroit.
 > décide, il faut un **hook PreToolUse**, pas une ligne de texte.
 
 Conséquence directe pour nos "règles inviolables" (jamais `git add -A`, jamais main) :
+
 - Écrites dans le CLAUDE.md = instructions FORTES, mais pas un verrou.
 - Pour un vrai blocage technique → **hook** (`PreToolUse`) ou **managed settings**
   (`permissions.deny`). À considérer pour les garde-fous critiques.
@@ -80,12 +81,14 @@ surtout si les instructions sont vagues ou contradictoires.
 ## 5. Astuces utiles découvertes
 
 ### Commentaires HTML = notes gratuites
+
 Les commentaires HTML de niveau bloc `<!-- ... -->` sont **retirés avant injection**
 dans le contexte. → Laisser des notes aux mainteneurs humains SANS consommer de
 tokens. (Les commentaires DANS un bloc de code sont, eux, préservés. Et `Read`
 sur le fichier les montre.)
 
 ### Imports `@path`
+
 Un CLAUDE.md peut importer d'autres fichiers via `@chemin/fichier`. Chemins relatifs
 (résolus par rapport au fichier qui importe) ou absolus. Récursif, max 4 niveaux.
 ⚠️ Les fichiers importés sont chargés au lancement → ça n'économise PAS de contexte,
@@ -94,17 +97,20 @@ Exemple : `# git workflow @docs/git-instructions.md`
 Partager du perso entre worktrees : `@~/.claude/my-project-instructions.md`.
 
 ### `/init` pour démarrer un CLAUDE.md projet
+
 Analyse le codebase et génère un CLAUDE.md de départ (build, tests, conventions).
 S'il existe déjà, `/init` propose des améliorations au lieu d'écraser.
 `CLAUDE_CODE_NEW_INIT=1` active un flux interactif multi-phases.
 
 ### AGENTS.md
+
 Claude Code lit `CLAUDE.md`, pas `AGENTS.md`. Si un repo a déjà un AGENTS.md :
 créer un CLAUDE.md qui l'importe → `@AGENTS.md` (puis ajouter des instructions
 Claude-spécifiques en dessous). Sur Windows, préférer l'import `@AGENTS.md` au
 symlink (le symlink exige les droits admin / mode développeur).
 
 ### `.claude/rules/` pour les gros projets
+
 Découper en fichiers par sujet (`testing.md`, `security.md`...). Chargés à chaque
 session avec la même priorité que `.claude/CLAUDE.md`. Peuvent être **scopés par
 chemin** via frontmatter `paths:` (glob) → ne se chargent que quand Claude touche
@@ -113,22 +119,26 @@ Règles user-level : `~/.claude/rules/` (préférences perso, tous projets).
 Partage entre projets via symlinks.
 
 ### Skills vs rules vs CLAUDE.md (quand utiliser quoi)
+
 - **CLAUDE.md** : faits à garder chaque session (build, conventions, "always X").
 - **Rules** (`.claude/rules/`) : modulaire, scopable par chemin, chargé en contexte.
 - **Skills** : workflows répétables, chargés UNIQUEMENT à l'invocation ou quand
   Claude juge pertinent. Pour les procédures qui n'ont pas à être en contexte tout le temps.
 
 ### Monorepo — exclure des CLAUDE.md parasites
+
 `claudeMdExcludes` (dans `.claude/settings.local.json`) saute des CLAUDE.md
 d'autres équipes par chemin/glob. Les managed policy ne peuvent PAS être exclus.
 
 ### Survie au /compact
+
 Le CLAUDE.md de racine de projet survit au `/compact` (re-lu depuis le disque).
 Les CLAUDE.md de sous-dossiers ne sont pas réinjectés auto : ils rechargent au
 prochain accès à un fichier de ce sous-dossier. → Mettre dans CLAUDE.md ce qui
 ne doit pas se perdre (pas seulement dans la conversation).
 
 ### Débogage "Claude ne suit pas mon CLAUDE.md"
+
 1. `/memory` → vérifier que le fichier est bien listé (sinon Claude ne le voit pas).
 2. Vérifier que l'emplacement est bien chargé pour la session (cf. remontée d'arbre).
 3. Rendre les instructions plus spécifiques.
@@ -160,9 +170,9 @@ universel de mA.xI.me.
 
 - **Socle mA.xI.me** → `core/socle.md`, projeté dans le `CLAUDE.md` du repository
   cible par l'installateur repo-only.
-- **Orchestrateur** → agent `maxime` et workflows sous `.claude/` dans le
+- **Orchestrateur** → agent `maxi-claude` et workflows sous `.claude/` dans le
   repository cible, sans installation sous `~/.claude/` par mA.xI.me.
-- **État partagé** → `.wip/maxime/`, lu également par les adaptateurs Copilot et Codex.
+- **État partagé** → `.wip/`, lu également par les adaptateurs Copilot et Codex.
 - **Garde-fous critiques** → le hook Claude peut compléter le texte, mais n'est pas
   une garantie portable aux autres hôtes.
 - **KB** → submodule `knowledge-base/` relatif au repository si le projet l'utilise.

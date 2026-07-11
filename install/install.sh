@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installe mA.xI.me en mode repo-only pour Claude Code, GitHub Copilot et/ou Codex.
 # Les modes d'installation globaux ont ete retires.
-# Initialise aussi .wip/maxime/ et les exclusions Git locales du repo cible.
+# Initialise aussi .wip/ et les exclusions Git locales du repo cible.
 # Usage :
 #   ./install.sh [--dry-run] [--target claude|copilot|codex|both|all] [--copilot-scope user|workspace] [--workspace-root path]
 set -euo pipefail
@@ -102,16 +102,40 @@ resolve_workspace_repo_root() {
 
 initialize_maxime_local_state() {
   local repo_root="$1"
-  local state_root="$repo_root/.wip/maxime"
+  local state_root="$repo_root/.wip"
   local exclude_path
+  local handoff_path="$state_root/memory/$day_stamp.session-handoff.md"
+  local decisions_path="$state_root/adr/decisions-log.md"
+  local dead_ends_path="$state_root/results/dead-ends.md"
 
   if [ "$dry" = 1 ]; then
-    echo "[dry-run] mkdir -p $state_root/memory $state_root/specs $repo_root/.bkp"
+    echo "[dry-run] mkdir -p $state_root/memory $state_root/specs $state_root/adr $state_root/results $state_root/tools $repo_root/.bkp"
     echo "[dry-run] add /.wip/ and /.bkp/ to the target repo's Git local exclude file"
     return
   fi
 
-  mkdir -p "$state_root/memory" "$state_root/specs" "$repo_root/.bkp"
+  mkdir -p "$state_root/memory" "$state_root/specs" "$state_root/adr" "$state_root/results" "$state_root/tools" "$repo_root/.bkp"
+
+  if [ ! -f "$handoff_path" ]; then
+    cat > "$handoff_path" <<EOF
+# Session Handoff
+
+## Date
+- $day_stamp
+
+## Etat courant
+- Aucun handoff initialise.
+
+## Prochaines actions
+- Definir la tache active.
+- Confirmer les criteres d'acceptation.
+- Executer puis verifier.
+EOF
+  fi
+
+  [ -f "$decisions_path" ] || printf '# Decisions Log\n' > "$decisions_path"
+  [ -f "$dead_ends_path" ] || printf '# Dead Ends\n' > "$dead_ends_path"
+
   exclude_path="$(git -C "$repo_root" rev-parse --git-path info/exclude)"
   case "$exclude_path" in
     /*) ;;
@@ -234,11 +258,10 @@ install_copilot_workspace() {
     exit 1
   fi
 
-  local agents_target prompts_target instructions_target backup_dir memory_target
+  local agents_target prompts_target instructions_target backup_dir
   agents_target="$repo_root/.github/agents"
   prompts_target="$repo_root/.github/prompts"
   instructions_target="$repo_root/.github/copilot-instructions.md"
-  memory_target="$repo_root/.wip/maxime/memory/$day_stamp.session-handoff.md"
   backup_dir="$repo_root/.bkp/copilot-install/$stamp"
 
   run mkdir -p "$agents_target" "$prompts_target"
@@ -260,28 +283,6 @@ install_copilot_workspace() {
   done
 
   run cp -f "$copilot_src/copilot-instructions.md" "$instructions_target"
-
-  run mkdir -p "$(dirname "$memory_target")"
-  if [ ! -f "$memory_target" ]; then
-    if [ "$dry" = 1 ]; then
-      echo "[dry-run] create $memory_target"
-    else
-      cat > "$memory_target" <<EOF
-# Session Handoff
-
-## Date
-- $day_stamp
-
-## Etat courant
-- Aucun handoff initialise.
-
-## Prochaines actions
-- Definir la tache active.
-- Confirmer les criteres d'acceptation.
-- Executer puis verifier.
-EOF
-    fi
-  fi
 
   if [ "$dry" = 0 ]; then
     echo -e "\033[32mmA.xI.me installe pour Copilot (workspace).\033[0m"
