@@ -1,10 +1,3 @@
----
-name: maxime-review
-description: mA.xI.me workflow generated from the canonical source.
-agent: maxime
-tools: [read_file, grep_search, file_search]
----
-
 # mA.xI.me — Revue
 
 À utiliser pour une revue de changement, un audit ou une analyse isolée.

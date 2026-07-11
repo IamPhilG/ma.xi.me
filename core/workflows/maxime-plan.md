@@ -1,10 +1,3 @@
----
-name: maxime-plan
-description: mA.xI.me workflow generated from the canonical source.
-agent: maxime
-tools: [read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file]
----
-
 # mA.xI.me — Spécification et plan
 
 À utiliser dès qu'une tâche concrète de modification, fonctionnalité, correction ou migration est identifiée.

@@ -11,6 +11,8 @@ Si WorkspaceRoot est omis, le repository Git contenant le repertoire courant
 est utilise comme cible. Sinon, WorkspaceRoot designe le repository cible.
 Les fichiers existants remplaces sont copies dans .bkp/<cible>-install/<horodatage>
 du repository cible avant leur remplacement.
+L'etat partage de mA.xI.me est initialise sous .wip/maxime/ et .wip/ ainsi que
+.bkp/ sont ajoutes au fichier Git local info/exclude du repository cible.
 
 .PARAMETER Target
 Selectionne les integrations a installer : claude, copilot, codex, both
@@ -118,6 +120,9 @@ function Resolve-WorkspaceRepoRoot {
         if ([string]::IsNullOrWhiteSpace($autoRepoRoot)) {
             throw "Aucun repo git detecte dans le repertoire courant. Fournis -WorkspaceRoot <chemin-du-repo-cible>."
         }
+        if ([System.IO.Path]::GetFullPath($autoRepoRoot) -eq [System.IO.Path]::GetFullPath($srcRepoRoot)) {
+            throw "Le repo cible ne peut pas etre le repo source mA.xI.me. Fournis -WorkspaceRoot <chemin-du-repo-cible>."
+        }
 
         return $autoRepoRoot
     }
@@ -128,7 +133,45 @@ function Resolve-WorkspaceRepoRoot {
         throw "Le chemin -WorkspaceRoot '$resolvedWorkspace' ne pointe pas vers un repo git valide."
     }
 
+    if ([System.IO.Path]::GetFullPath($repoRoot) -eq [System.IO.Path]::GetFullPath($srcRepoRoot)) {
+        throw "Le repo cible ne peut pas etre le repo source mA.xI.me. Fournis -WorkspaceRoot <chemin-du-repo-cible>."
+    }
+
     return $repoRoot
+}
+
+function Initialize-MaximeLocalState {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot
+    )
+
+    $stateRoot = Join-Path $RepoRoot '.wip\maxime'
+    $stateDirectories = @(
+        (Join-Path $stateRoot 'memory'),
+        (Join-Path $stateRoot 'specs'),
+        (Join-Path $RepoRoot '.bkp')
+    )
+
+    if ($WhatIfPreference) {
+        $stateDirectories | ForEach-Object { Write-Host "What if: create local state directory $_" }
+        Write-Host "What if: add .wip/ and .bkp/ to the target repo's Git local exclude file"
+        return
+    }
+
+    New-Item -ItemType Directory -Force -Path $stateDirectories | Out-Null
+    $excludePath = (& git -C $RepoRoot rev-parse --git-path info/exclude).Trim()
+    if (![System.IO.Path]::IsPathRooted($excludePath)) {
+        $excludePath = Join-Path $RepoRoot $excludePath
+    }
+    $excludeDirectory = Split-Path $excludePath -Parent
+    New-Item -ItemType Directory -Force -Path $excludeDirectory | Out-Null
+    $existing = if (Test-Path $excludePath) { Get-Content -Path $excludePath } else { @() }
+    foreach ($entry in @('/.wip/', '/.bkp/')) {
+        if ($existing -notcontains $entry) {
+            Add-Content -Path $excludePath -Value $entry -Encoding UTF8
+        }
+    }
 }
 
 function Target-IncludesCopilot {
@@ -141,7 +184,7 @@ function Target-IncludesCopilot {
 }
 
 function Assert-RepoOnlyMode {
-    if ((Target-IncludesCopilot -SelectedTarget $Target) -and $CopilotScope -ne 'workspace') {
+    if ($CopilotScope -ne 'workspace') {
         throw "Installation globale retiree: -CopilotScope '$CopilotScope' n'est plus supporte. Utilise -CopilotScope workspace."
     }
 }
@@ -238,7 +281,7 @@ function Install-CopilotWorkspace {
     $agentsTarget = Join-Path $ghRoot 'agents'
     $promptsTarget = Join-Path $ghRoot 'prompts'
     $instructionsTarget = Join-Path $ghRoot 'copilot-instructions.md'
-    $memoryTarget = Join-Path $RepoRoot ".copilot\memory\$dayStamp.session-handoff.md"
+    $memoryTarget = Join-Path $RepoRoot ".wip\maxime\memory\$dayStamp.session-handoff.md"
     $backupDir = Join-Path $RepoRoot ".bkp\copilot-install\$stamp"
 
     New-Item -ItemType Directory -Force -Path $agentsTarget, $promptsTarget | Out-Null
@@ -305,9 +348,16 @@ function Install-CodexWorkspace {
         throw "Le dossier source .agents/skills est introuvable dans le repo."
     }
 
-    $checkScript = Join-Path $srcRepoRoot 'tools\check-codex-skills-sync.ps1'
+    $checkScript = Join-Path $srcRepoRoot 'tools\check-adapter-sync.ps1'
     if (Test-Path $checkScript) {
-        & $checkScript
+        $previousWhatIfPreference = $WhatIfPreference
+        try {
+            $WhatIfPreference = $false
+            & $checkScript
+        }
+        finally {
+            $WhatIfPreference = $previousWhatIfPreference
+        }
     }
 
     $backupDir = Join-Path $RepoRoot ".bkp\codex-install\$stamp"
@@ -343,18 +393,22 @@ try {
     Assert-RepoOnlyMode
     $workspaceRepoRoot = Resolve-WorkspaceRepoRoot
 
-    switch ($Target) {
-        'claude' { Install-ClaudeWorkspace -RepoRoot $workspaceRepoRoot }
-        'copilot' { Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot }
-        'codex' { Install-CodexWorkspace -RepoRoot $workspaceRepoRoot }
-        'both' {
-            Install-ClaudeWorkspace -RepoRoot $workspaceRepoRoot
-            Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot
-        }
-        'all' {
-            Install-ClaudeWorkspace -RepoRoot $workspaceRepoRoot
-            Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot
-            Install-CodexWorkspace -RepoRoot $workspaceRepoRoot
+    if ($PSCmdlet.ShouldProcess($workspaceRepoRoot, "Installer mA.xI.me pour la cible '$Target'")) {
+        Initialize-MaximeLocalState -RepoRoot $workspaceRepoRoot
+
+        switch ($Target) {
+            'claude' { Install-ClaudeWorkspace -RepoRoot $workspaceRepoRoot }
+            'copilot' { Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot }
+            'codex' { Install-CodexWorkspace -RepoRoot $workspaceRepoRoot }
+            'both' {
+                Install-ClaudeWorkspace -RepoRoot $workspaceRepoRoot
+                Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot
+            }
+            'all' {
+                Install-ClaudeWorkspace -RepoRoot $workspaceRepoRoot
+                Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot
+                Install-CodexWorkspace -RepoRoot $workspaceRepoRoot
+            }
         }
     }
 }

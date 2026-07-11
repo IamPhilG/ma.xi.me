@@ -155,10 +155,14 @@ racine du dossier qui sert. Raison de plus pour travailler dans de vrais repos g
 
 ## 7. Application à mA.xI.me
 
-- **Méthode + socle** → User (`~/.claude/CLAUDE.md`), toujours actif.
-- **mA.xI.me** → agent (`~/.claude/agents/maxime.md`) + skills, activable.
-- **Spécifique projet** → `./.claude/CLAUDE.md` du repo de travail.
-- **Perso non partagé** (sandbox, données test) → `./CLAUDE.local.md` + `.gitignore`.
-- **Garde-fous critiques** (jamais main, jamais `git add -A`) → envisager des
-  **hooks PreToolUse** en complément du texte, car le CLAUDE.md n'est pas un verrou.
-- **KB** → submodule à `knowledge-base/` (chemin relatif au repo).
+Ce document décrit les mécanismes propres à Claude Code ; il ne définit pas le socle
+universel de mA.xI.me.
+
+- **Socle mA.xI.me** → `core/socle.md`, projeté dans le `CLAUDE.md` du repository
+  cible par l'installateur repo-only.
+- **Orchestrateur** → agent `maxime` et workflows sous `.claude/` dans le
+  repository cible, sans installation sous `~/.claude/` par mA.xI.me.
+- **État partagé** → `.wip/maxime/`, lu également par les adaptateurs Copilot et Codex.
+- **Garde-fous critiques** → le hook Claude peut compléter le texte, mais n'est pas
+  une garantie portable aux autres hôtes.
+- **KB** → submodule `knowledge-base/` relatif au repository si le projet l'utilise.

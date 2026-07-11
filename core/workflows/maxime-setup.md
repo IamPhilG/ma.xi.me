@@ -1,9 +1,3 @@
----
-name: maxime-setup
-description: mA.xI.me workflow generated from the canonical source.
-allowed-tools: Read, Glob, Grep, Bash, Write, Edit
----
-
 # mA.xI.me — Initialisation d'un repository
 
 À utiliser pour préparer un nouveau repository à recevoir mA.xI.me.

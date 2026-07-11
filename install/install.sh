@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Installe mA.xI.me en mode repo-only pour Claude Code, GitHub Copilot et/ou Codex.
 # Les modes d'installation globaux ont ete retires.
+# Initialise aussi .wip/maxime/ et les exclusions Git locales du repo cible.
 # Usage :
 #   ./install.sh [--dry-run] [--target claude|copilot|codex|both|all] [--copilot-scope user|workspace] [--workspace-root path]
 set -euo pipefail
@@ -70,7 +71,7 @@ target_includes_copilot() {
 }
 
 assert_repo_only_mode() {
-  if target_includes_copilot && [ "$copilot_scope" != "workspace" ]; then
+  if [ "$copilot_scope" != "workspace" ]; then
     echo "Installation globale retiree: --copilot-scope '$copilot_scope' n'est plus supporte. Utilise --copilot-scope workspace." >&2
     exit 1
   fi
@@ -90,7 +91,37 @@ resolve_workspace_repo_root() {
     fi
   fi
 
+  repo_root="$(cd "$repo_root" && pwd)"
+  if [ "$repo_root" = "$src_repo_root" ]; then
+    echo "Le repo cible ne peut pas etre le repo source mA.xI.me. Fournis --workspace-root <chemin-du-repo-cible>." >&2
+    exit 1
+  fi
+
   printf '%s\n' "$repo_root"
+}
+
+initialize_maxime_local_state() {
+  local repo_root="$1"
+  local state_root="$repo_root/.wip/maxime"
+  local exclude_path
+
+  if [ "$dry" = 1 ]; then
+    echo "[dry-run] mkdir -p $state_root/memory $state_root/specs $repo_root/.bkp"
+    echo "[dry-run] add /.wip/ and /.bkp/ to the target repo's Git local exclude file"
+    return
+  fi
+
+  mkdir -p "$state_root/memory" "$state_root/specs" "$repo_root/.bkp"
+  exclude_path="$(git -C "$repo_root" rev-parse --git-path info/exclude)"
+  case "$exclude_path" in
+    /*) ;;
+    *) exclude_path="$repo_root/$exclude_path" ;;
+  esac
+  mkdir -p "$(dirname "$exclude_path")"
+  touch "$exclude_path"
+  for entry in '/.wip/' '/.bkp/'; do
+    grep -Fxq "$entry" "$exclude_path" || printf '%s\n' "$entry" >> "$exclude_path"
+  done
 }
 
 backup_if_exists() {
@@ -207,7 +238,7 @@ install_copilot_workspace() {
   agents_target="$repo_root/.github/agents"
   prompts_target="$repo_root/.github/prompts"
   instructions_target="$repo_root/.github/copilot-instructions.md"
-  memory_target="$repo_root/.copilot/memory/$day_stamp.session-handoff.md"
+  memory_target="$repo_root/.wip/maxime/memory/$day_stamp.session-handoff.md"
   backup_dir="$repo_root/.bkp/copilot-install/$stamp"
 
   run mkdir -p "$agents_target" "$prompts_target"
@@ -266,7 +297,7 @@ install_codex_workspace() {
   local repo_root="$1"
   local codex_source="$src_repo_root/.codex/AGENTS.md"
   local skills_source_root="$src_repo_root/.agents/skills"
-  local check_script="$src_repo_root/tools/check-codex-skills-sync.sh"
+  local check_script="$src_repo_root/tools/check-adapter-sync.sh"
 
   if [ ! -f "$codex_source" ]; then
     echo "Missing source file: $codex_source" >&2
@@ -318,6 +349,7 @@ install_codex_workspace() {
 
 assert_repo_only_mode
 workspace_repo_root="$(resolve_workspace_repo_root)"
+initialize_maxime_local_state "$workspace_repo_root"
 
 case "$target" in
   claude)

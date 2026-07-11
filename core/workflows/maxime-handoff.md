@@ -1,9 +1,3 @@
----
-name: maxime-handoff
-description: mA.xI.me workflow generated from the canonical source.
-allowed-tools: Read, Glob, Grep, Bash, Write, Edit
----
-
 # mA.xI.me — Handoff
 
 À utiliser à la fin d'un bloc de travail, sur une décision structurante ou avant l'arrêt d'une session.
