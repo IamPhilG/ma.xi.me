@@ -1,3 +1,54 @@
+<#
+.SYNOPSIS
+Installe mA.xI.me dans un repository Git cible.
+
+.DESCRIPTION
+Projette les fichiers mA.xI.me pour Claude Code, GitHub Copilot et/ou Codex
+dans un repository Git. L'installation est strictement locale au repository :
+aucun repertoire global de Claude Code, Copilot ou Codex n'est modifie.
+
+Si WorkspaceRoot est omis, le repository Git contenant le repertoire courant
+est utilise comme cible. Sinon, WorkspaceRoot designe le repository cible.
+Les fichiers existants remplaces sont copies dans .bkp/<cible>-install/<horodatage>
+du repository cible avant leur remplacement.
+
+.PARAMETER Target
+Selectionne les integrations a installer : claude, copilot, codex, both
+(Claude Code et Copilot) ou all (les trois, valeur par defaut).
+
+.PARAMETER CopilotScope
+Doit etre workspace. La valeur user est conservee seulement afin de produire
+une erreur explicite : les installations globales ne sont pas prises en charge.
+
+.PARAMETER WorkspaceRoot
+Chemin du repository Git cible. Si absent, le repository Git detecte depuis le
+repertoire courant est utilise.
+
+.PARAMETER WhatIf
+Affiche les operations qui seraient effectuees sans modifier le repository cible.
+
+.PARAMETER Confirm
+Demande confirmation avant les operations qui modifient le repository cible.
+
+.EXAMPLE
+Get-Help .\install\install.ps1 -Detailed
+
+Affiche cette aide detaillee depuis la racine du repository mA.xI.me.
+
+.EXAMPLE
+.\install\install.ps1 -Target all -WorkspaceRoot C:\chemin\vers\repo-cible
+
+Installe Claude Code, Copilot et Codex dans le repository cible, depuis la
+racine du repository mA.xI.me.
+
+.EXAMPLE
+powershell -ExecutionPolicy Bypass -File C:\chemin\vers\ma.xi.me\install\install.ps1 -Target copilot -WorkspaceRoot C:\chemin\vers\repo-cible -WhatIf
+
+Previsualise l'installation Copilot depuis n'importe quel repertoire, sans ecrire.
+
+.NOTES
+Utilise `Get-Help <chemin-vers-install.ps1> -Full` pour afficher l'aide complete.
+#>
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [ValidateSet('claude', 'copilot', 'codex', 'both', 'all')]

@@ -19,100 +19,73 @@ selon une boucle **SPEC → PLAN → LIVRABLE → VERIFY → REVIEW → IMPROVE*
 
 ## Installation
 
+L'installateur déploie mA.xI.me **dans un repo git uniquement**. Il ne modifie jamais les répertoires globaux de Claude Code, Copilot ou Codex.
+
+1. Clone ce dépôt et place-toi à sa racine.
+2. Lance l’installateur depuis le repo cible, ou indique ce repo avec `WorkspaceRoot` / `--workspace-root`.
+3. Choisis la cible à installer.
+
+| Cible | Installe dans le repo cible |
+| --- | --- |
+| `claude` | `CLAUDE.md`, `.claude/settings.json`, hooks, agents et skills mA.xI.me |
+| `copilot` | `.github/copilot-instructions.md`, agents et prompts |
+| `codex` | `AGENTS.md` et `.agents/skills/maxime*` |
+| `both` | Claude Code + Copilot |
+| `all` | Claude Code + Copilot + Codex (défaut) |
+
 ### Windows
 
+Depuis le repo cible :
+
 ```powershell
-git clone https://github.com/IamPhilG/ma.xi.me
-cd ma.xi.me
-
-# La policy d'exécution PowerShell par défaut bloque les scripts.
-# Pour en savoir plus sur les policy PowerShell :
-#  https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-7.6)
-# Enlever le '#' ci-dessous pour choisir:
-
-# Choix 1:
-# Lance l'installeur sans modifier la policy de ta machine :
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target all -CopilotScope workspace
-
-# Installer Claude Code (repo courant):
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target claude
-
-# Installer Copilot (scope workspace .github):
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target copilot -CopilotScope workspace -WorkspaceRoot C:\chemin\vers\repo-cible
-
-# Installer Codex (repo courant):
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target codex
-
-# Installer Claude + Copilot (repo courant):
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target both -CopilotScope workspace
-
-# Installer Claude + Copilot + Codex (repo courant):
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target all -CopilotScope workspace
-
-# Ou choix 2:
-# Pour pré-visualiser ce qui sera fait, sans rien modifier :
-#  powershell -ExecutionPolicy Bypass -File install\install.ps1 -WhatIf -Target all -CopilotScope workspace
+powershell -ExecutionPolicy Bypass -File C:\chemin\vers\ma.xi.me\install\install.ps1
 ```
 
-Les modes globaux sont refusés explicitement. En particulier, `-CopilotScope user` n'est plus supporté.
+Depuis un autre répertoire, avec un repo cible explicite :
 
-Backups de projection locaux (dans le repo cible):
-- `./.bkp/claude-install/<timestamp>/`
-- `./.bkp/copilot-install/<timestamp>/`
-- `./.bkp/codex-install/<timestamp>/`
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\chemin\vers\ma.xi.me\install\install.ps1 -Target all -WorkspaceRoot C:\chemin\vers\repo-cible
+```
+
+Depuis la racine de mA.xI.me, avec un repo cible explicite :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target all -WorkspaceRoot C:\chemin\vers\repo-cible
+```
+
+Ajoute `-WhatIf` à l’une de ces commandes pour prévisualiser les changements sans écrire.
 
 ### macOS / Linux
 
-    chmod +x install/install.sh
-    ./install/install.sh --target all --copilot-scope workspace
+Depuis le repo cible :
 
-Installer Claude Code (repo courant):
+```bash
+/chemin/vers/ma.xi.me/install/install.sh
+```
 
-  ./install/install.sh --target claude
+Depuis un autre répertoire, avec un repo cible explicite :
 
-Pour installer Copilot dans le repo (.github) :
+```bash
+/chemin/vers/ma.xi.me/install/install.sh --target all --workspace-root /chemin/vers/repo-cible
+```
 
-  ./install/install.sh --target copilot --copilot-scope workspace --workspace-root /chemin/vers/repo-cible
+Depuis la racine de mA.xI.me, avec un repo cible explicite :
 
-Installer Codex (repo courant):
+```bash
+./install/install.sh --target all --workspace-root /chemin/vers/repo-cible
+```
 
-  ./install/install.sh --target codex
+Ajoute `--dry-run` à l’une de ces commandes pour prévisualiser les changements sans écrire.
 
-Installer Claude + Copilot (repo courant):
+Pour installer une seule cible, remplace `all` par `claude`, `copilot`, `codex` ou `both`.
 
-  ./install/install.sh --target both --copilot-scope workspace
+Les fichiers existants remplacés sont sauvegardés dans `./.bkp/<cible>-install/<timestamp>/` dans le repo cible. Le mode global et `CopilotScope user` ne sont pas pris en charge.
 
-Installer Claude + Copilot + Codex (repo courant):
+### Sources et vérification
 
-  ./install/install.sh --target all --copilot-scope workspace
+Le repo mA.xI.me reste la source des templates. Les projections Copilot viennent de `.copilot/`; les skills Codex viennent de `.agents/skills/`.
 
-Pour pré-visualiser sans rien modifier :
-
-  ./install/install.sh --dry-run --target all --copilot-scope workspace
-
-Les modes globaux sont refusés explicitement. En particulier, `--copilot-scope user` n'est plus supporté.
-
-## Installation Claude Code (repo-only)
-
-Projection dans le repo cible :
-- `CLAUDE.md`
-- `./.claude/settings.json`
-- `./.claude/hooks/*`
-- `./.claude/agents/maxime*.md`
-- `./.claude/skills/maxime*`
-
-## Codex (repo)
-
-Projection repo-only via l'installeur (`-Target codex` / `--target codex`) :
-- `AGENTS.md` à la racine du repo cible
-- `./.agents/skills/maxime*`
-
-Compatibilité repo conservée :
-- `AGENTS.md` est lu par Codex à la racine du repo.
-- `.agents/skills/maxime-*/SKILL.md` expose les workflows mA.xI.me comme skills repo-scoped.
-- `skills/maxime-*` reste la source de vérité; `.agents/skills/maxime-*` doit rester synchronisé.
-
-Vérifier la synchronisation des skills Codex :
+Pour vérifier leur synchronisation :
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\check-codex-skills-sync.ps1
@@ -121,37 +94,6 @@ powershell -ExecutionPolicy Bypass -File tools\check-codex-skills-sync.ps1
 ```bash
 bash tools/check-codex-skills-sync.sh
 ```
-
-## Installation GitHub Copilot (adaptation .copilot)
-
-Le dossier source de verite est `./.copilot/`.
-
-Contenu principal :
-- `./.copilot/copilot-instructions.md`
-- `./.copilot/agents/*.agent.md`
-- `./.copilot/agents/maxime-reviewer.agent.md` (read-only, n'execute pas le terminal et redirige)
-- `./.copilot/agents/maxime-reviewer-shell.agent.md` (audit avance avec terminal, risque assume)
-- `./.copilot/prompts/*.prompt.md`
-- `./.copilot/memory/YYYYMMDD.session-handoff.md` (local, non versionne)
-
-### Deploiement via scripts
-
-Mode supporté : portée repo/workspace uniquement.
-
-Les scripts copient les fichiers vers :
-  - `./.github/copilot-instructions.md`
-  - `./.github/agents/`
-  - `./.github/prompts/`
-
-Important : la cible est le repo courant s'il est git, sinon fournir `-WorkspaceRoot` / `--workspace-root`.
-Le repo ma.xi.me reste la source des fichiers `.copilot`.
-
-Backups Copilot (locaux, non sync GitHub) :
-- `./.bkp/copilot-install/<timestamp>/`
-
-Memoire de session (sans partage Claude Code) :
-- `#file:.copilot/memory/YYYYMMDD.session-handoff.md`
-- Fichier local uniquement (ignore par git). En scope workspace, l'installeur cree/utilise le fichier du jour (format `YYYYMMDD.session-handoff.md`).
 
 Note modele:
 - Les fichiers n'imposent pas un modele unique.
