@@ -128,6 +128,17 @@ bash tools/generate-adapters.sh
 bash tools/check-adapter-sync.sh
 ```
 
+Pour vérifier que les décisions de `.wip/adr/decisions-log.md` sont toujours
+respectées :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\check-decisions.ps1
+```
+
+```bash
+bash tools/check-decisions.sh
+```
+
 Note modele:
 
 - Les fichiers n'imposent pas un modele unique.

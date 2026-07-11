@@ -102,6 +102,11 @@ Les cibles disponibles sont `claude`, `copilot`, `codex`, `both` et `all`.
 - `tools/check-codex-skills-sync.*` reste un contrôle de compatibilité ciblé pour les
   skills Codex.
 - Les installateurs exécutent le contrôle global avant une projection Codex.
+- `tools/check-decisions.ps1` et `tools/check-decisions.sh` exécutent un test par
+  décision structurante de `.wip/adr/decisions-log.md` (installation fraîche sur
+  fixture temporaire, absence de résidus de nommage legacy, structure `.wip/`,
+  etc.). Toute nouvelle décision référence le test qui la vérifie ; sans test
+  référencé, la décision est incomplète (règle du socle).
 
 ## Limites assumées
 

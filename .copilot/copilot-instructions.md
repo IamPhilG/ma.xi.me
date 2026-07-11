@@ -21,6 +21,7 @@ mA.xI.me est une méthode de travail commune à Claude Code, GitHub Copilot et C
 - Utiliser Git prudemment : inspecter l'état avant d'agir et ne jamais exécuter de staging global automatique.
 - Vérifier le résultat le plus directement possible avant de déclarer le travail terminé.
 - Quand une vérification attendue n'a pas été exécutée, écrire exactement : `non vérifié par exécution`.
+- Toute décision structurante consignée dans `adr/decisions-log.md` est accompagnée d'un test exécutable qui échoue si elle cesse d'être respectée ; la ligne de décision référence ce test (chemin ou commande).
 
 ## Méthode
 
