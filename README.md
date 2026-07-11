@@ -60,7 +60,8 @@ L'installateur initialise également l'état partagé local `.wip/` :
 - `.wip/specs/` (spécifications)
 - `.wip/adr/` (décisions)
 - `.wip/results/` (impasses et résultats)
-- `.wip/tools/` (sorties d'outils)
+- `.wip/tools/` (sorties d'outils, plus `cleanup-wip.ps1`/`.sh` — routine de nettoyage
+  de `.wip/`, `dry-run` par défaut)
 
 Il ajoute aussi `/.wip/` et `/.bkp/` au fichier Git local `info/exclude` du repo
 cible. Ces données ne sont donc pas synchronisées.

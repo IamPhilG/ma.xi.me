@@ -159,6 +159,7 @@ function Initialize-MaximeLocalState {
 
     if ($WhatIfPreference) {
         $stateDirectories | ForEach-Object { Write-Host "What if: create local state directory $_" }
+        Write-Host "What if: copy cleanup-wip.ps1 and cleanup-wip.sh into $(Join-Path $stateRoot 'tools')"
         Write-Host "What if: add .wip/ and .bkp/ to the target repo's Git local exclude file"
         return
     }
@@ -193,6 +194,18 @@ function Initialize-MaximeLocalState {
 
     if (!(Test-Path $deadEndsPath)) {
         Set-Content -Path $deadEndsPath -Value "# Dead Ends`n" -Encoding UTF8
+    }
+
+    $toolsRoot = Join-Path $stateRoot 'tools'
+    $toolsBackupDir = Join-Path $RepoRoot ".bkp\maxime-tools\$stamp"
+    $wipToolsSource = Join-Path $srcRepoRoot 'core\tools'
+    foreach ($toolName in @('cleanup-wip.ps1', 'cleanup-wip.sh')) {
+        $toolSource = Join-Path $wipToolsSource $toolName
+        $toolTarget = Join-Path $toolsRoot $toolName
+        if (Test-Path $toolSource) {
+            Backup-IfExists -Path $toolTarget -BackupDir $toolsBackupDir
+            Copy-Item $toolSource $toolTarget -Force
+        }
     }
 
     $excludePath = (& git -C $RepoRoot rev-parse --git-path info/exclude).Trim()

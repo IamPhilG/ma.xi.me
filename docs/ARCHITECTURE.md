@@ -68,11 +68,19 @@ Tous les outils lisent et écrivent le même état local :
   results/
     dead-ends.md
   tools/
+    cleanup-wip.ps1
+    cleanup-wip.sh
 ```
 
 L'installateur crée ces dossiers et ajoute `/.wip/` ainsi que `/.bkp/` au fichier
 Git local `info/exclude` du repository cible. Les fichiers de remplacement sont
 sauvegardés dans `.bkp/<cible>-install/<horodatage>/`.
+
+`.wip/tools/cleanup-wip.ps1` et `.wip/tools/cleanup-wip.sh` sont copiés depuis
+`core/tools/` à chaque installation. Ils purgent les artefacts `.wip/` obsolètes
+(handoffs anciens, specs/résultats/tests périmés) en mode `dry-run` par défaut ;
+la suppression réelle exige `-Apply` / `--apply`. Ils ne touchent jamais rien
+hors de `.wip/`.
 
 ## Installation
 

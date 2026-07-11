@@ -110,6 +110,7 @@ initialize_maxime_local_state() {
 
   if [ "$dry" = 1 ]; then
     echo "[dry-run] mkdir -p $state_root/memory $state_root/specs $state_root/adr $state_root/results $state_root/tools $repo_root/.bkp"
+    echo "[dry-run] copy cleanup-wip.ps1 and cleanup-wip.sh into $state_root/tools"
     echo "[dry-run] add /.wip/ and /.bkp/ to the target repo's Git local exclude file"
     return
   fi
@@ -135,6 +136,16 @@ EOF
 
   [ -f "$decisions_path" ] || printf '# Decisions Log\n' > "$decisions_path"
   [ -f "$dead_ends_path" ] || printf '# Dead Ends\n' > "$dead_ends_path"
+
+  local tools_source="$src_repo_root/core/tools"
+  local tools_backup_dir="$repo_root/.bkp/maxime-tools/$stamp"
+  for tool_name in cleanup-wip.ps1 cleanup-wip.sh; do
+    if [ -f "$tools_source/$tool_name" ]; then
+      backup_if_exists "$state_root/tools/$tool_name" "$tools_backup_dir"
+      cp -f "$tools_source/$tool_name" "$state_root/tools/$tool_name"
+      chmod +x "$state_root/tools/$tool_name" 2>/dev/null || true
+    fi
+  done
 
   exclude_path="$(git -C "$repo_root" rev-parse --git-path info/exclude)"
   case "$exclude_path" in
