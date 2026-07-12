@@ -45,11 +45,11 @@ la vérification avant clôture. Il est projeté dans :
 
 | Hôte | Instructions durables | Workflows | Orchestrateur |
 | --- | --- | --- | --- |
-| Claude Code | `CLAUDE.md` | `.claude/skills/` | `.claude/agents/maxime.md` |
-| GitHub Copilot | `.github/copilot-instructions.md` | `.github/prompts/` | `.github/agents/maxime.agent.md` |
-| Codex | `AGENTS.md` | `.agents/skills/` | workflows natifs, sans faux agent |
+| Claude Code | `CLAUDE.md` | `.claude/skills/` | `.claude/agents/maxime.md` (`maxi-claude`) |
+| GitHub Copilot | `.github/copilot-instructions.md` | `.github/prompts/` | `.github/agents/maxime.agent.md` (`maxi-copilot`) |
+| Codex | `AGENTS.md` | `.agents/skills/` | `maxi-codex` (identité logique, sans picker agent) |
 
-`maxime` est l'unique orchestrateur de travail structuré. Les agents de revue et le
+Le socle `maxime` est l'unique orchestrateur de travail structuré. Les agents de revue et le
 hook Claude sont des extensions facultatives d'hôte : ils ne sont pas une promesse de
 protection équivalente dans Copilot ou Codex.
 
@@ -58,18 +58,29 @@ protection équivalente dans Copilot ou Codex.
 Tous les outils lisent et écrivent le même état local :
 
 ```text
-.wip/maxime/
+.wip/
   memory/
     YYYYMMDD.session-handoff.md
-    decisions-log.md
-    dead-ends.md
   specs/
-    YYYYMMDD-titre.md
+    <fonction-ou-feature>.md
+  adr/
+    decisions-log.md
+  results/
+    dead-ends.md
+  tools/
+    cleanup-wip.ps1
+    cleanup-wip.sh
 ```
 
 L'installateur crée ces dossiers et ajoute `/.wip/` ainsi que `/.bkp/` au fichier
 Git local `info/exclude` du repository cible. Les fichiers de remplacement sont
 sauvegardés dans `.bkp/<cible>-install/<horodatage>/`.
+
+`.wip/tools/cleanup-wip.ps1` et `.wip/tools/cleanup-wip.sh` sont copiés depuis
+`core/tools/` à chaque installation. Ils purgent les artefacts `.wip/` obsolètes
+(handoffs anciens, specs/résultats/tests périmés) en mode `dry-run` par défaut ;
+la suppression réelle exige `-Apply` / `--apply`. Ils ne touchent jamais rien
+hors de `.wip/`.
 
 ## Installation
 
@@ -91,6 +102,11 @@ Les cibles disponibles sont `claude`, `copilot`, `codex`, `both` et `all`.
 - `tools/check-codex-skills-sync.*` reste un contrôle de compatibilité ciblé pour les
   skills Codex.
 - Les installateurs exécutent le contrôle global avant une projection Codex.
+- `tools/check-decisions.ps1` et `tools/check-decisions.sh` exécutent un test par
+  décision structurante de `.wip/adr/decisions-log.md` (installation fraîche sur
+  fixture temporaire, absence de résidus de nommage legacy, structure `.wip/`,
+  etc.). Toute nouvelle décision référence le test qui la vérifie ; sans test
+  référencé, la décision est incomplète (règle du socle).
 
 ## Limites assumées
 

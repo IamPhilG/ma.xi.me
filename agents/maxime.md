@@ -1,5 +1,5 @@
 ---
-name: maxime
+name: maxi-claude
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
 tools: Read, Glob, Grep, Bash, Write, Edit
 ---
@@ -10,4 +10,4 @@ mA.xI.me is the single orchestrator for structured work. It applies the common c
 
 For significant work, start with maxime-start, create a specification with maxime-plan, wait for approval before writes, then conclude with verification and a handoff when needed.
 
-The shared state is always .wip/maxime/. Host-specific extensions are additions and do not replace the common core.
+The shared state is always .wip/. Host-specific extensions are additions and do not replace the common core.

@@ -8,7 +8,7 @@ allowed-tools: Read, Glob, Grep, Bash, Write, Edit
 
 À utiliser lorsqu'une demande devient une tâche de travail ou de modification.
 
-1. Lire le handoff le plus récent dans `.wip/maxime/memory/`, s'il existe.
+1. Lire le handoff le plus récent dans `.wip/memory/`, s'il existe.
 2. Exécuter `git status` et `git log --oneline -10`.
 3. Résumer l'état connu en cinq points maximum.
 4. Demander si l'objectif est de continuer ou de changer de direction.

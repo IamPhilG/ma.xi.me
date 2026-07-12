@@ -1,11 +1,11 @@
 ---
-name: maxime-reviewer-shell
+name: maxi-copilot-reviewer-shell
 description: Sous-agent de revue avancee avec acces terminal (risque assume).
 tools: [read_file, grep_search, file_search, run_in_terminal]
 user-invocable: true
 handoffs:
   - label: Retour a maxime
-    agent: maxime
+    agent: maxi-copilot
     prompt: Integre ce retour de revue shell et decide des actions.
     send: false
 ---

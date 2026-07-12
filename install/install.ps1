@@ -11,8 +11,9 @@ Si WorkspaceRoot est omis, le repository Git contenant le repertoire courant
 est utilise comme cible. Sinon, WorkspaceRoot designe le repository cible.
 Les fichiers existants remplaces sont copies dans .bkp/<cible>-install/<horodatage>
 du repository cible avant leur remplacement.
-L'etat partage de mA.xI.me est initialise sous .wip/maxime/ et .wip/ ainsi que
-.bkp/ sont ajoutes au fichier Git local info/exclude du repository cible.
+L'etat partage de mA.xI.me est initialise sous .wip/ (memory, specs, adr,
+results, tools) et .bkp/ est ajoute au fichier Git local info/exclude du
+repository cible.
 
 .PARAMETER Target
 Selectionne les integrations a installer : claude, copilot, codex, both
@@ -146,20 +147,67 @@ function Initialize-MaximeLocalState {
         [string]$RepoRoot
     )
 
-    $stateRoot = Join-Path $RepoRoot '.wip\maxime'
+    $stateRoot = Join-Path $RepoRoot '.wip'
     $stateDirectories = @(
         (Join-Path $stateRoot 'memory'),
         (Join-Path $stateRoot 'specs'),
+        (Join-Path $stateRoot 'adr'),
+        (Join-Path $stateRoot 'results'),
+        (Join-Path $stateRoot 'tools'),
         (Join-Path $RepoRoot '.bkp')
     )
 
     if ($WhatIfPreference) {
         $stateDirectories | ForEach-Object { Write-Host "What if: create local state directory $_" }
+        Write-Host "What if: copy cleanup-wip.ps1 and cleanup-wip.sh into $(Join-Path $stateRoot 'tools')"
         Write-Host "What if: add .wip/ and .bkp/ to the target repo's Git local exclude file"
         return
     }
 
     New-Item -ItemType Directory -Force -Path $stateDirectories | Out-Null
+
+    $handoffPath = Join-Path $stateRoot "memory\$dayStamp.session-handoff.md"
+    $decisionsPath = Join-Path $stateRoot 'adr\decisions-log.md'
+    $deadEndsPath = Join-Path $stateRoot 'results\dead-ends.md'
+
+    if (!(Test-Path $handoffPath)) {
+        $defaultHandoff = @"
+# Session Handoff
+
+## Date
+- $dayStamp
+
+## Etat courant
+- Aucun handoff initialise.
+
+## Prochaines actions
+- Definir la tache active.
+- Confirmer les criteres d'acceptation.
+- Executer puis verifier.
+"@
+        Set-Content -Path $handoffPath -Value $defaultHandoff -Encoding UTF8
+    }
+
+    if (!(Test-Path $decisionsPath)) {
+        Set-Content -Path $decisionsPath -Value "# Decisions Log`n" -Encoding UTF8
+    }
+
+    if (!(Test-Path $deadEndsPath)) {
+        Set-Content -Path $deadEndsPath -Value "# Dead Ends`n" -Encoding UTF8
+    }
+
+    $toolsRoot = Join-Path $stateRoot 'tools'
+    $toolsBackupDir = Join-Path $RepoRoot ".bkp\maxime-tools\$stamp"
+    $wipToolsSource = Join-Path $srcRepoRoot 'core\tools'
+    foreach ($toolName in @('cleanup-wip.ps1', 'cleanup-wip.sh')) {
+        $toolSource = Join-Path $wipToolsSource $toolName
+        $toolTarget = Join-Path $toolsRoot $toolName
+        if (Test-Path $toolSource) {
+            Backup-IfExists -Path $toolTarget -BackupDir $toolsBackupDir
+            Copy-Item $toolSource $toolTarget -Force
+        }
+    }
+
     $excludePath = (& git -C $RepoRoot rev-parse --git-path info/exclude).Trim()
     if (![System.IO.Path]::IsPathRooted($excludePath)) {
         $excludePath = Join-Path $RepoRoot $excludePath
@@ -281,7 +329,6 @@ function Install-CopilotWorkspace {
     $agentsTarget = Join-Path $ghRoot 'agents'
     $promptsTarget = Join-Path $ghRoot 'prompts'
     $instructionsTarget = Join-Path $ghRoot 'copilot-instructions.md'
-    $memoryTarget = Join-Path $RepoRoot ".wip\maxime\memory\$dayStamp.session-handoff.md"
     $backupDir = Join-Path $RepoRoot ".bkp\copilot-install\$stamp"
 
     New-Item -ItemType Directory -Force -Path $agentsTarget, $promptsTarget | Out-Null
@@ -302,26 +349,6 @@ function Install-CopilotWorkspace {
     }
 
     Copy-Item (Join-Path $copilotSrc 'copilot-instructions.md') $instructionsTarget -Force
-
-    $memoryDir = Split-Path $memoryTarget -Parent
-    New-Item -ItemType Directory -Force -Path $memoryDir | Out-Null
-    if (!(Test-Path $memoryTarget)) {
-        $defaultHandoff = @"
-# Session Handoff
-
-## Date
-- $dayStamp
-
-## Etat courant
-- Aucun handoff initialise.
-
-## Prochaines actions
-- Definir la tache active.
-- Confirmer les criteres d'acceptation.
-- Executer puis verifier.
-"@
-        Set-Content -Path $memoryTarget -Value $defaultHandoff -Encoding UTF8
-    }
 
     if (-not $WhatIfPreference) {
         Write-Host "mA.xI.me installe pour Copilot (workspace)." -ForegroundColor Green

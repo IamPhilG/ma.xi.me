@@ -3,12 +3,28 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path $PSScriptRoot -Parent
+if (!(Test-Path (Join-Path $repositoryRoot 'core'))) {
+    $parentRoot = Split-Path $repositoryRoot -Parent
+    if (Test-Path (Join-Path $parentRoot 'core')) {
+        $repositoryRoot = $parentRoot
+    }
+    else {
+        throw "Repository root not found from '$PSScriptRoot' (missing core/)."
+    }
+}
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("maxime-adapter-check-" + [Guid]::NewGuid())
 
 try {
     New-Item -ItemType Directory -Path $tempRoot | Out-Null
     Copy-Item -Path (Join-Path $repositoryRoot 'core') -Destination (Join-Path $tempRoot 'core') -Recurse
-    Copy-Item -Path (Join-Path $repositoryRoot 'tools\generate-adapters.ps1') -Destination (Join-Path $tempRoot 'generate-adapters.ps1')
+    $generatorPath = Join-Path $repositoryRoot 'tools\generate-adapters.ps1'
+    if (!(Test-Path $generatorPath)) {
+        $generatorPath = Join-Path $repositoryRoot '.wip\tools\generate-adapters.ps1'
+    }
+    if (!(Test-Path $generatorPath)) {
+        throw "Unable to find generate-adapters.ps1 under tools/ or .wip/tools/."
+    }
+    Copy-Item -Path $generatorPath -Destination (Join-Path $tempRoot 'generate-adapters.ps1')
     & (Join-Path $tempRoot 'generate-adapters.ps1') -RepositoryRoot $tempRoot
 
     $relativePaths = @(
