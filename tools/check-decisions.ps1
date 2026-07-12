@@ -113,6 +113,22 @@ try {
         $true
     }
 
+    # Decision: Copilot tool identifiers use VS Code's current names (read, grep,
+    # search, execute, edit, agent), never the renamed/unknown legacy names that VS
+    # Code's own agent-file linter flagged (read_file, grep_search, file_search,
+    # run_in_terminal, apply_patch, create_file, runSubagent).
+    Test-Decision 'aucun nom d''outil Copilot obsolete (read_file/grep_search/file_search/run_in_terminal/apply_patch/create_file/runSubagent)' {
+        $legacyNames = 'read_file', 'grep_search', 'file_search', 'run_in_terminal', 'apply_patch', 'create_file', 'runSubagent'
+        $pattern = ($legacyNames | ForEach-Object { [regex]::Escape($_) }) -join '|'
+        $targets = Get-ChildItem -Path (Join-Path $repositoryRoot '.copilot') -Recurse -File -Include '*.md' -ErrorAction SilentlyContinue
+        $targets += Get-Item (Join-Path $repositoryRoot 'tools\generate-adapters.ps1'), (Join-Path $repositoryRoot 'tools\generate-adapters.sh')
+        $hits = $targets | Select-String -Pattern $pattern -ErrorAction SilentlyContinue
+        if ($hits) {
+            throw "Noms d'outils Copilot obsoletes trouves: $($hits.Path -join ', ')"
+        }
+        $true
+    }
+
     # Decision: a fresh install produces the standardized .wip/ layout and distributes
     # cleanup-wip, and cleanup-wip runs safely even without .wip/tests/ present
     # (regression test for the set -e / bare `return` bug fixed 2026-07-11).

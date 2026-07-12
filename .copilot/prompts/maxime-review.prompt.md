@@ -2,7 +2,7 @@
 name: maxime-review
 description: mA.xI.me workflow generated from the canonical source.
 agent: maxi-copilot
-tools: [read_file, grep_search, file_search]
+tools: [read, grep, search]
 ---
 
 # mA.xI.me — Revue

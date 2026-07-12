@@ -108,7 +108,7 @@ $copilotAgent = @"
 ---
 name: maxi-copilot
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
-tools: [read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file, runSubagent]
+tools: [read, grep, search, execute, edit, agent]
 agents: [maxi-copilot-reviewer, maxi-copilot-reviewer-shell]
 user-invocable: true
 ---
@@ -125,7 +125,7 @@ foreach ($workflowFile in $workflowFiles) {
     $body = Read-CoreFile $workflowFile.FullName
     $isReview = $name -eq 'maxime-review'
     $claudeTools = if ($isReview) { 'Read, Glob, Grep, Bash' } else { 'Read, Glob, Grep, Bash, Write, Edit' }
-    $copilotTools = if ($isReview) { '[read_file, grep_search, file_search]' } else { '[read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file]' }
+    $copilotTools = if ($isReview) { '[read, grep, search]' } else { '[read, grep, search, execute, edit]' }
     $skill = @"
 ---
 name: $name
