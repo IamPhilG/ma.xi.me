@@ -71,22 +71,27 @@ cible. Ces données ne sont donc pas synchronisées.
 Depuis le repo cible :
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File C:\chemin\vers\ma.xi.me\install\install.ps1
+powershell -ExecutionPolicy Bypass -File "C:\chemin\vers\ma.xi.me\install\install.ps1"
 ```
 
 Depuis un autre répertoire, avec un repo cible explicite :
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File C:\chemin\vers\ma.xi.me\install\install.ps1 -Target all -WorkspaceRoot C:\chemin\vers\repo-cible
+powershell -ExecutionPolicy Bypass -File "C:\chemin\vers\ma.xi.me\install\install.ps1" -Target all -WorkspaceRoot "C:\chemin\vers\repo-cible"
 ```
 
 Depuis la racine de mA.xI.me, avec un repo cible explicite :
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target all -WorkspaceRoot C:\chemin\vers\repo-cible
+powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target all -WorkspaceRoot "C:\chemin\vers\repo-cible"
 ```
 
 Ajoute `-WhatIf` à l’une de ces commandes pour prévisualiser les changements sans écrire.
+
+**Mets systématiquement les chemins entre guillemets** (`"..."`) : un chemin
+avec un espace (profil Windows `Prénom Nom`, dossier OneDrive, etc.) sans
+guillemets fait échouer l'installation — PowerShell coupe l'argument au
+premier espace.
 
 ### macOS / Linux
 
@@ -99,14 +104,16 @@ Depuis le repo cible :
 Depuis un autre répertoire, avec un repo cible explicite :
 
 ```bash
-/chemin/vers/ma.xi.me/install/install.sh --target all --workspace-root /chemin/vers/repo-cible
+/chemin/vers/ma.xi.me/install/install.sh --target all --workspace-root "/chemin/vers/repo cible"
 ```
 
 Depuis la racine de mA.xI.me, avec un repo cible explicite :
 
 ```bash
-./install/install.sh --target all --workspace-root /chemin/vers/repo-cible
+./install/install.sh --target all --workspace-root "/chemin/vers/repo cible"
 ```
+
+Là aussi, mets les chemins entre guillemets s'ils contiennent un espace.
 
 Ajoute `--dry-run` à l’une de ces commandes pour prévisualiser les changements sans écrire.
 
