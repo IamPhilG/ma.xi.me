@@ -65,3 +65,4 @@ try {
 finally {
     Remove-Item -Path $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
+exit 0

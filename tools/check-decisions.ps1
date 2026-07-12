@@ -44,6 +44,7 @@ try {
             'check-adapter-sync.ps1', 'check-adapter-sync.sh',
             'check-codex-skills-sync.ps1', 'check-codex-skills-sync.sh',
             'check-decisions.ps1', 'check-decisions.sh',
+            'cleanup-global.ps1', 'cleanup-global.sh',
             'generate-adapters.ps1', 'generate-adapters.sh'
         )
         $actual = Get-ChildItem -Path (Join-Path $repositoryRoot 'tools') -File | ForEach-Object { $_.Name }
@@ -145,6 +146,53 @@ try {
             Select-String -Pattern '^allowed-tools:' -ErrorAction SilentlyContinue
         if ($hits) {
             throw "allowed-tools trouve dans une SKILL.md Codex: $($hits.Path -join ', ')"
+        }
+        $true
+    }
+
+    # Decision: generate-adapters.ps1 and generate-adapters.sh must produce byte-identical
+    # projections from the same core/ source. Running only one language's
+    # check-adapter-sync is not enough -- it only compares that language's generator
+    # against the committed files, so it can pass even if the two generators disagree
+    # with each other (regression: a PowerShell here-string backtick escape sequence
+    # silently corrupted generated text on 2026-07-12, undetected by check-adapter-sync.ps1
+    # alone because it was comparing the bug against itself).
+    Test-Decision 'generate-adapters.ps1 et .sh produisent une projection identique' {
+        & (Join-Path $repositoryRoot 'tools\check-adapter-sync.ps1') | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw 'check-adapter-sync.ps1 echoue.'
+        }
+        $bash = Get-Command bash -ErrorAction SilentlyContinue
+        if (-not $bash) {
+            throw 'bash introuvable -- impossible de verifier check-adapter-sync.sh depuis ce checker.'
+        }
+        # Two conventions coexist on Windows depending on which 'bash' resolves first:
+        # git-bash/MSYS uses /c/..., WSL uses /mnt/c/.... Try both.
+        $driveLetter = $repositoryRoot.Substring(0, 1).ToLower()
+        $tail = $repositoryRoot.Substring(2) -replace '\\', '/'
+        $candidates = @("/$driveLetter$tail", "/mnt/$driveLetter$tail")
+        $success = $false
+        $previousEap = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            foreach ($candidate in $candidates) {
+                try {
+                    & bash -c "cd '$candidate' && bash tools/check-adapter-sync.sh" *>$null
+                }
+                catch {
+                    continue
+                }
+                if ($LASTEXITCODE -eq 0) {
+                    $success = $true
+                    break
+                }
+            }
+        }
+        finally {
+            $ErrorActionPreference = $previousEap
+        }
+        if (-not $success) {
+            throw 'check-adapter-sync.sh echoue (les deux generateurs divergent), ou le chemin repo n''a pas pu etre resolu depuis bash.'
         }
         $true
     }
