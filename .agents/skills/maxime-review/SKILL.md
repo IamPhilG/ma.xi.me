@@ -1,7 +1,6 @@
 ---
 name: maxime-review
 description: mA.xI.me workflow generated from the canonical source.
-allowed-tools: Read, Glob, Grep, Bash
 ---
 
 # mA.xI.me — Revue

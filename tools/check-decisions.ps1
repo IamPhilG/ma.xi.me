@@ -113,11 +113,12 @@ try {
         $true
     }
 
-    # Decision: Copilot tool identifiers use VS Code's current names (read, grep,
-    # search, execute, edit, agent), never the renamed/unknown legacy names that VS
-    # Code's own agent-file linter flagged (read_file, grep_search, file_search,
-    # run_in_terminal, apply_patch, create_file, runSubagent).
-    Test-Decision 'aucun nom d''outil Copilot obsolete (read_file/grep_search/file_search/run_in_terminal/apply_patch/create_file/runSubagent)' {
+    # Decision: Copilot tool identifiers use VS Code's current names (read, search,
+    # execute, edit, agent -- no standalone 'grep', folded into 'search'), never the
+    # renamed/unknown legacy names that VS Code's own agent-file linter flagged
+    # (read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file,
+    # runSubagent).
+    Test-Decision 'aucun nom d''outil Copilot obsolete (read_file/grep_search/file_search/run_in_terminal/apply_patch/create_file/runSubagent/grep)' {
         $legacyNames = 'read_file', 'grep_search', 'file_search', 'run_in_terminal', 'apply_patch', 'create_file', 'runSubagent'
         $pattern = ($legacyNames | ForEach-Object { [regex]::Escape($_) }) -join '|'
         $targets = Get-ChildItem -Path (Join-Path $repositoryRoot '.copilot') -Recurse -File -Include '*.md' -ErrorAction SilentlyContinue
@@ -125,6 +126,25 @@ try {
         $hits = $targets | Select-String -Pattern $pattern -ErrorAction SilentlyContinue
         if ($hits) {
             throw "Noms d'outils Copilot obsoletes trouves: $($hits.Path -join ', ')"
+        }
+        $copilotTargets = Get-ChildItem -Path (Join-Path $repositoryRoot '.copilot') -Recurse -File -Include '*.md' -ErrorAction SilentlyContinue
+        $toolsLineHits = $copilotTargets | Select-String -Pattern '^tools:.*\bgrep\b' -ErrorAction SilentlyContinue
+        if ($toolsLineHits) {
+            throw "'grep' n'est pas un outil Copilot valide (utiliser 'search'): $($toolsLineHits.Path -join ', ')"
+        }
+        $true
+    }
+
+    # Decision: Codex-facing SKILL.md (.agents/skills/) must not declare
+    # 'allowed-tools' -- VS Code's Codex extension rejects it (supported frontmatter:
+    # argument-hint, compatibility, context, description, disable-model-invocation,
+    # license, metadata, name, user-invocable). Claude-facing skills/*/SKILL.md keeps
+    # it; the two are generated as distinct bodies, not copies of each other.
+    Test-Decision 'aucun allowed-tools dans .agents/skills/*/SKILL.md (Codex)' {
+        $hits = Get-ChildItem -Path (Join-Path $repositoryRoot '.agents\skills') -Recurse -File -Filter 'SKILL.md' -ErrorAction SilentlyContinue |
+            Select-String -Pattern '^allowed-tools:' -ErrorAction SilentlyContinue
+        if ($hits) {
+            throw "allowed-tools trouve dans une SKILL.md Codex: $($hits.Path -join ', ')"
         }
         $true
     }

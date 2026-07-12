@@ -1,7 +1,7 @@
 ---
 name: maxi-copilot-reviewer-shell
 description: Sous-agent de revue avancee avec acces terminal (risque assume).
-tools: [read, grep, search, execute]
+tools: [read, search, execute]
 user-invocable: true
 handoffs:
   - label: Retour a maxime
