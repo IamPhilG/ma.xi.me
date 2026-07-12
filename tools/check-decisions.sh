@@ -20,7 +20,7 @@ fail() { echo "FAIL: $1 -- $2"; failures+=("$1"); }
 # host-distributed tools like cleanup-wip.*.
 check_tools_root() {
   local name="tools/ ne contient que les scripts de maintenance du repo source"
-  local expected="check-adapter-sync.ps1 check-adapter-sync.sh check-codex-skills-sync.ps1 check-codex-skills-sync.sh check-decisions.ps1 check-decisions.sh generate-adapters.ps1 generate-adapters.sh"
+  local expected="check-adapter-sync.ps1 check-adapter-sync.sh check-codex-skills-sync.ps1 check-codex-skills-sync.sh check-decisions.ps1 check-decisions.sh cleanup-global.ps1 cleanup-global.sh generate-adapters.ps1 generate-adapters.sh"
   local unexpected=()
   for f in "$repository_root"/tools/*; do
     local base
@@ -134,6 +134,32 @@ check_no_allowed_tools_in_codex_skills() {
   fi
 }
 
+# Decision: generate-adapters.ps1 and generate-adapters.sh must produce byte-identical
+# projections from the same core/ source (see the matching PowerShell check for the
+# 2026-07-12 backtick-escape regression this guards against).
+check_cross_generator_sync() {
+  local name="generate-adapters.ps1 et .sh produisent une projection identique"
+  if ! bash "$repository_root/tools/check-adapter-sync.sh" >/dev/null; then
+    fail "$name" "check-adapter-sync.sh echoue."
+    return
+  fi
+  local pwsh_cmd=""
+  if command -v pwsh >/dev/null 2>&1; then
+    pwsh_cmd="pwsh"
+  elif command -v powershell >/dev/null 2>&1; then
+    pwsh_cmd="powershell"
+  fi
+  if [ -z "$pwsh_cmd" ]; then
+    fail "$name" "powershell/pwsh introuvable -- impossible de verifier check-adapter-sync.ps1 depuis ce checker."
+    return
+  fi
+  if ! "$pwsh_cmd" -ExecutionPolicy Bypass -File "$repository_root/tools/check-adapter-sync.ps1" >/dev/null; then
+    fail "$name" "check-adapter-sync.ps1 echoue (les deux generateurs divergent)."
+    return
+  fi
+  pass "$name"
+}
+
 # Decision: a fresh install produces the standardized .wip/ layout and distributes
 # cleanup-wip, and cleanup-wip runs safely even without .wip/tests/ present
 # (regression test for the set -e / bare `return` bug fixed 2026-07-11).
@@ -201,6 +227,7 @@ check_specs_md_removed
 check_no_legacy_naming
 check_no_legacy_copilot_tools
 check_no_allowed_tools_in_codex_skills
+check_cross_generator_sync
 check_fresh_install
 
 echo
