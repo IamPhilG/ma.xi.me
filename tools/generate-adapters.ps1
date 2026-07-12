@@ -108,7 +108,7 @@ $copilotAgent = @"
 ---
 name: maxi-copilot
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
-tools: [read, grep, search, execute, edit, agent]
+tools: [read, search, execute, edit, agent]
 agents: [maxi-copilot-reviewer, maxi-copilot-reviewer-shell]
 user-invocable: true
 ---
@@ -125,12 +125,20 @@ foreach ($workflowFile in $workflowFiles) {
     $body = Read-CoreFile $workflowFile.FullName
     $isReview = $name -eq 'maxime-review'
     $claudeTools = if ($isReview) { 'Read, Glob, Grep, Bash' } else { 'Read, Glob, Grep, Bash, Write, Edit' }
-    $copilotTools = if ($isReview) { '[read, grep, search]' } else { '[read, grep, search, execute, edit]' }
-    $skill = @"
+    $copilotTools = if ($isReview) { '[read, search]' } else { '[read, search, execute, edit]' }
+    $claudeSkill = @"
 ---
 name: $name
 description: mA.xI.me workflow generated from the canonical source.
 allowed-tools: $claudeTools
+---
+
+$body
+"@
+    $codexSkill = @"
+---
+name: $name
+description: mA.xI.me workflow generated from the canonical source.
 ---
 
 $body
@@ -145,8 +153,8 @@ tools: $copilotTools
 
 $body
 "@
-    Write-Utf8File (Join-Path $root "skills/$name/SKILL.md") $skill
-    Write-Utf8File (Join-Path $root ".agents/skills/$name/SKILL.md") $skill
+    Write-Utf8File (Join-Path $root "skills/$name/SKILL.md") $claudeSkill
+    Write-Utf8File (Join-Path $root ".agents/skills/$name/SKILL.md") $codexSkill
     Write-Utf8File (Join-Path $root ".copilot/prompts/$name.prompt.md") $prompt
 }
 

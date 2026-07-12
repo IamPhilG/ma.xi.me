@@ -2,7 +2,7 @@
 name: maxime-retrofit
 description: mA.xI.me workflow generated from the canonical source.
 agent: maxi-copilot
-tools: [read, grep, search, execute, edit]
+tools: [read, search, execute, edit]
 ---
 
 # mA.xI.me — Mise en conformité d'un repository existant

@@ -94,12 +94,13 @@ check_no_legacy_naming() {
   fi
 }
 
-# Decision: Copilot tool identifiers use VS Code's current names (read, grep, search,
-# execute, edit, agent), never the renamed/unknown legacy names that VS Code's own
-# agent-file linter flagged (read_file, grep_search, file_search, run_in_terminal,
-# apply_patch, create_file, runSubagent).
+# Decision: Copilot tool identifiers use VS Code's current names (read, search,
+# execute, edit, agent -- no standalone 'grep', folded into 'search'), never the
+# renamed/unknown legacy names that VS Code's own agent-file linter flagged
+# (read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file,
+# runSubagent).
 check_no_legacy_copilot_tools() {
-  local name="aucun nom d'outil Copilot obsolete (read_file/grep_search/file_search/run_in_terminal/apply_patch/create_file/runSubagent)"
+  local name="aucun nom d'outil Copilot obsolete (read_file/grep_search/file_search/run_in_terminal/apply_patch/create_file/runSubagent/grep)"
   local hits
   hits="$(grep -rEln 'read_file|grep_search|file_search|run_in_terminal|apply_patch|create_file|runSubagent' \
     "$repository_root/.copilot" \
@@ -107,6 +108,27 @@ check_no_legacy_copilot_tools() {
     2>/dev/null || true)"
   if [ -n "$hits" ]; then
     fail "$name" "Noms d'outils Copilot obsoletes trouves: $hits"
+    return
+  fi
+  hits="$(grep -rEln '^tools:.*\bgrep\b' "$repository_root/.copilot" 2>/dev/null || true)"
+  if [ -n "$hits" ]; then
+    fail "$name" "'grep' n'est pas un outil Copilot valide (utiliser 'search'): $hits"
+  else
+    pass "$name"
+  fi
+}
+
+# Decision: Codex-facing SKILL.md (.agents/skills/) must not declare
+# 'allowed-tools' -- VS Code's Codex extension rejects it (supported frontmatter:
+# argument-hint, compatibility, context, description, disable-model-invocation,
+# license, metadata, name, user-invocable). Claude-facing skills/*/SKILL.md keeps
+# it; the two are generated as distinct bodies, not copies of each other.
+check_no_allowed_tools_in_codex_skills() {
+  local name="aucun allowed-tools dans .agents/skills/*/SKILL.md (Codex)"
+  local hits
+  hits="$(grep -rEln '^allowed-tools:' "$repository_root/.agents/skills" 2>/dev/null || true)"
+  if [ -n "$hits" ]; then
+    fail "$name" "allowed-tools trouve dans une SKILL.md Codex: $hits"
   else
     pass "$name"
   fi
@@ -178,6 +200,7 @@ check_no_dated_specs
 check_specs_md_removed
 check_no_legacy_naming
 check_no_legacy_copilot_tools
+check_no_allowed_tools_in_codex_skills
 check_fresh_install
 
 echo

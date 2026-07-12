@@ -1,7 +1,6 @@
 ---
 name: maxime-start
 description: mA.xI.me workflow generated from the canonical source.
-allowed-tools: Read, Glob, Grep, Bash, Write, Edit
 ---
 
 # mA.xI.me — Démarrage de session

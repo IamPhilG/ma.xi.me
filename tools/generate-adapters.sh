@@ -101,7 +101,7 @@ write_file "$root/.copilot/agents/maxime.agent.md" <<EOF
 ---
 name: maxi-copilot
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
-tools: [read, grep, search, execute, edit, agent]
+tools: [read, search, execute, edit, agent]
 agents: [maxi-copilot-reviewer, maxi-copilot-reviewer-shell]
 user-invocable: true
 ---
@@ -116,10 +116,10 @@ while IFS= read -r workflow; do
   body="$(read_core "$workflow")"
   if [ "$name" = "maxime-review" ]; then
     claude_tools='Read, Glob, Grep, Bash'
-    copilot_tools='[read, grep, search]'
+    copilot_tools='[read, search]'
   else
     claude_tools='Read, Glob, Grep, Bash, Write, Edit'
-    copilot_tools='[read, grep, search, execute, edit]'
+    copilot_tools='[read, search, execute, edit]'
   fi
   write_file "$root/skills/$name/SKILL.md" <<EOF
 ---
@@ -130,8 +130,14 @@ allowed-tools: $claude_tools
 
 $body
 EOF
-  mkdir -p "$root/.agents/skills/$name"
-  cp "$root/skills/$name/SKILL.md" "$root/.agents/skills/$name/SKILL.md"
+  write_file "$root/.agents/skills/$name/SKILL.md" <<EOF
+---
+name: $name
+description: mA.xI.me workflow generated from the canonical source.
+---
+
+$body
+EOF
   write_file "$root/.copilot/prompts/$name.prompt.md" <<EOF
 ---
 name: $name
