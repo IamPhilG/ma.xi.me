@@ -102,6 +102,35 @@ remove_empty_dir() {
   fi
 }
 
+# remove_git_exclude_entries <repo_root> <entry> [entry...]
+remove_git_exclude_entries() {
+  local repo_root="$1"
+  shift
+  if [ "$dry" = 1 ]; then
+    for entry in "$@"; do
+      echo "[dry-run] remove $entry from the target repo's Git local exclude file"
+    done
+    return
+  fi
+  local exclude_path
+  exclude_path="$(git -C "$repo_root" rev-parse --git-path info/exclude)"
+  case "$exclude_path" in
+    /*) ;;
+    *) exclude_path="$repo_root/$exclude_path" ;;
+  esac
+  [ -f "$exclude_path" ] || return 0
+  local tmp
+  tmp="$(mktemp)"
+  cp "$exclude_path" "$tmp"
+  for entry in "$@"; do
+    local tmp2
+    tmp2="$(mktemp)"
+    grep -vFx "$entry" "$tmp" > "$tmp2" || true
+    mv "$tmp2" "$tmp"
+  done
+  mv "$tmp" "$exclude_path"
+}
+
 uninstall_claude_workspace() {
   local repo_root="$1"
   local backup_dir="$repo_root/.bkp/claude-uninstall/$stamp"
@@ -141,6 +170,13 @@ uninstall_claude_workspace() {
   remove_if_exists "$claude_root/settings.json" "$backup_dir"
   remove_empty_dir "$claude_root"
 
+  remove_git_exclude_entries "$repo_root" \
+    '/CLAUDE.md' \
+    '/.claude/agents/maxime*.md' \
+    '/.claude/skills/maxime-*/' \
+    '/.claude/hooks/block-destructive-bash.sh' \
+    '/.claude/settings.json'
+
   echo -e "\033[32mmA.xI.me retire pour Claude (workspace).\033[0m"
   [ "$remove_state" = 1 ] || echo "Backups locaux: $backup_dir"
 }
@@ -172,6 +208,11 @@ uninstall_copilot_workspace() {
 
   remove_empty_dir "$gh_root"
 
+  remove_git_exclude_entries "$repo_root" \
+    '/.github/copilot-instructions.md' \
+    '/.github/agents/maxime*.agent.md' \
+    '/.github/prompts/maxime-*.prompt.md'
+
   echo -e "\033[32mmA.xI.me retire pour Copilot (workspace).\033[0m"
   [ "$remove_state" = 1 ] || echo "Backups locaux: $backup_dir"
 }
@@ -191,6 +232,10 @@ uninstall_codex_workspace() {
     remove_empty_dir "$skills_target_root"
     remove_empty_dir "$repo_root/.agents"
   fi
+
+  remove_git_exclude_entries "$repo_root" \
+    '/AGENTS.md' \
+    '/.agents/skills/maxime-*/'
 
   echo -e "\033[32mmA.xI.me retire pour Codex (workspace).\033[0m"
   [ "$remove_state" = 1 ] || echo "Backups locaux: $backup_dir"

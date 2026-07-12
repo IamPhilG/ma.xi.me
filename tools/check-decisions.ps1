@@ -249,6 +249,43 @@ try {
         $true
     }
 
+    # Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
+    # .git/info/exclude -- the whole install stays local, nothing commitable by
+    # accident. -Shared restores the old commitable behavior. uninstall.ps1 removes
+    # the same entries it added.
+    Test-Decision 'installation locale par defaut (info/exclude), -Shared rend commitable, uninstall nettoie' {
+        $fixtureDefault = Join-Path $tempRoot 'fixture-local'
+        New-Item -ItemType Directory -Path $fixtureDefault | Out-Null
+        Push-Location $fixtureDefault
+        try { git init -q } finally { Pop-Location }
+        & (Join-Path $repositoryRoot 'install\install.ps1') -Target claude -WorkspaceRoot $fixtureDefault | Out-Null
+        $statusDefault = & git -C $fixtureDefault status --short
+        if ($statusDefault) {
+            throw "installation par defaut : git status devrait etre vide (tout exclu), trouve: $($statusDefault -join '; ')"
+        }
+
+        & (Join-Path $repositoryRoot 'install\uninstall.ps1') -Target claude -WorkspaceRoot $fixtureDefault | Out-Null
+        $excludeDefault = Get-Content (Join-Path $fixtureDefault '.git\info\exclude')
+        if ($excludeDefault -contains '/CLAUDE.md') {
+            throw "uninstall n'a pas retire /CLAUDE.md de .git/info/exclude."
+        }
+        if (($excludeDefault -notcontains '/.wip/') -or ($excludeDefault -notcontains '/.bkp/')) {
+            throw "uninstall a retire /.wip/ ou /.bkp/ de .git/info/exclude -- ne doit retirer que les entrees qu'il a ajoutees."
+        }
+
+        $fixtureShared = Join-Path $tempRoot 'fixture-shared'
+        New-Item -ItemType Directory -Path $fixtureShared | Out-Null
+        Push-Location $fixtureShared
+        try { git init -q } finally { Pop-Location }
+        & (Join-Path $repositoryRoot 'install\install.ps1') -Target claude -WorkspaceRoot $fixtureShared -Shared | Out-Null
+        $statusShared = & git -C $fixtureShared status --short
+        $claudeMdUntracked = $statusShared | Where-Object { $_ -match 'CLAUDE\.md$' }
+        if (-not $claudeMdUntracked) {
+            throw "-Shared : CLAUDE.md devrait apparaitre en non-suivi (commitable) dans git status."
+        }
+        $true
+    }
+
     if ($problems.Count -gt 0) {
         Write-Host ''
         Write-Host 'mA.xI.me decision checks failed:' -ForegroundColor Red

@@ -15,6 +15,12 @@ L'etat partage de mA.xI.me est initialise sous .wip/ (memory, specs, adr,
 results, tools) et .bkp/ est ajoute au fichier Git local info/exclude du
 repository cible.
 
+Par defaut, les fichiers projetes (CLAUDE.md, .claude/, .github/*, AGENTS.md,
+.agents/skills/) sont eux aussi ajoutes a .git/info/exclude : l'installation
+reste strictement locale a la machine, jamais commitable par erreur. Utilise
+-Shared pour revenir au comportement partage (fichiers commitables, pense pour
+etre commite et partage avec l'equipe).
+
 .PARAMETER Target
 Selectionne les integrations a installer : claude, copilot, codex, both
 (Claude Code et Copilot) ou all (les trois, valeur par defaut).
@@ -26,6 +32,11 @@ une erreur explicite : les installations globales ne sont pas prises en charge.
 .PARAMETER WorkspaceRoot
 Chemin du repository Git cible. Si absent, le repository Git detecte depuis le
 repertoire courant est utilise.
+
+.PARAMETER Shared
+Rend les fichiers projetes commitables (comportement anterieur), au lieu du
+comportement local par defaut. A utiliser quand l'equipe entiere doit
+partager le meme socle mA.xI.me via le repository.
 
 .PARAMETER WhatIf
 Affiche les operations qui seraient effectuees sans modifier le repository cible.
@@ -63,7 +74,9 @@ param(
     [ValidateSet('user', 'workspace')]
     [string]$CopilotScope = 'workspace',
 
-    [string]$WorkspaceRoot
+    [string]$WorkspaceRoot,
+
+    [switch]$Shared
 )
 
 # Installe mA.xI.me en mode repo-only pour Claude Code, GitHub Copilot et/ou Codex.
@@ -211,6 +224,22 @@ function Initialize-MaximeLocalState {
         }
     }
 
+    Add-GitExcludeEntries -RepoRoot $RepoRoot -Entries @('/.wip/', '/.bkp/')
+}
+
+function Add-GitExcludeEntries {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string[]]$Entries
+    )
+
+    if ($WhatIfPreference) {
+        $Entries | ForEach-Object { Write-Host "What if: add $_ to the target repo's Git local exclude file" }
+        return
+    }
+
     $excludePath = (& git -C $RepoRoot rev-parse --git-path info/exclude).Trim()
     if (![System.IO.Path]::IsPathRooted($excludePath)) {
         $excludePath = Join-Path $RepoRoot $excludePath
@@ -218,7 +247,7 @@ function Initialize-MaximeLocalState {
     $excludeDirectory = Split-Path $excludePath -Parent
     New-Item -ItemType Directory -Force -Path $excludeDirectory | Out-Null
     $existing = if (Test-Path $excludePath) { Get-Content -Path $excludePath } else { @() }
-    foreach ($entry in @('/.wip/', '/.bkp/')) {
+    foreach ($entry in $Entries) {
         if ($existing -notcontains $entry) {
             Add-Content -Path $excludePath -Value $entry -Encoding UTF8
         }
@@ -419,6 +448,41 @@ function Install-CodexWorkspace {
     }
 }
 
+$claudeExcludeEntries = @(
+    '/CLAUDE.md',
+    '/.claude/agents/maxime*.md',
+    '/.claude/skills/maxime-*/',
+    '/.claude/hooks/block-destructive-bash.sh',
+    '/.claude/settings.json'
+)
+$copilotExcludeEntries = @(
+    '/.github/copilot-instructions.md',
+    '/.github/agents/maxime*.agent.md',
+    '/.github/prompts/maxime-*.prompt.md'
+)
+$codexExcludeEntries = @(
+    '/AGENTS.md',
+    '/.agents/skills/maxime-*/'
+)
+
+function Install-ClaudeWithExclude {
+    param([Parameter(Mandatory = $true)][string]$RepoRoot)
+    Install-ClaudeWorkspace -RepoRoot $RepoRoot
+    if (-not $Shared) { Add-GitExcludeEntries -RepoRoot $RepoRoot -Entries $claudeExcludeEntries }
+}
+
+function Install-CopilotWithExclude {
+    param([Parameter(Mandatory = $true)][string]$RepoRoot)
+    Install-CopilotWorkspace -RepoRoot $RepoRoot
+    if (-not $Shared) { Add-GitExcludeEntries -RepoRoot $RepoRoot -Entries $copilotExcludeEntries }
+}
+
+function Install-CodexWithExclude {
+    param([Parameter(Mandatory = $true)][string]$RepoRoot)
+    Install-CodexWorkspace -RepoRoot $RepoRoot
+    if (-not $Shared) { Add-GitExcludeEntries -RepoRoot $RepoRoot -Entries $codexExcludeEntries }
+}
+
 try {
     Assert-RepoOnlyMode
     $workspaceRepoRoot = Resolve-WorkspaceRepoRoot
@@ -427,17 +491,26 @@ try {
         Initialize-MaximeLocalState -RepoRoot $workspaceRepoRoot
 
         switch ($Target) {
-            'claude' { Install-ClaudeWorkspace -RepoRoot $workspaceRepoRoot }
-            'copilot' { Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot }
-            'codex' { Install-CodexWorkspace -RepoRoot $workspaceRepoRoot }
+            'claude' { Install-ClaudeWithExclude -RepoRoot $workspaceRepoRoot }
+            'copilot' { Install-CopilotWithExclude -RepoRoot $workspaceRepoRoot }
+            'codex' { Install-CodexWithExclude -RepoRoot $workspaceRepoRoot }
             'both' {
-                Install-ClaudeWorkspace -RepoRoot $workspaceRepoRoot
-                Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot
+                Install-ClaudeWithExclude -RepoRoot $workspaceRepoRoot
+                Install-CopilotWithExclude -RepoRoot $workspaceRepoRoot
             }
             'all' {
-                Install-ClaudeWorkspace -RepoRoot $workspaceRepoRoot
-                Install-CopilotWorkspace -RepoRoot $workspaceRepoRoot
-                Install-CodexWorkspace -RepoRoot $workspaceRepoRoot
+                Install-ClaudeWithExclude -RepoRoot $workspaceRepoRoot
+                Install-CopilotWithExclude -RepoRoot $workspaceRepoRoot
+                Install-CodexWithExclude -RepoRoot $workspaceRepoRoot
+            }
+        }
+
+        if (-not $WhatIfPreference) {
+            if ($Shared) {
+                Write-Host "Mode partage : les fichiers installes restent commitables (comme avant)." -ForegroundColor Cyan
+            }
+            else {
+                Write-Host "Mode local (par defaut) : les fichiers installes sont exclus localement via .git/info/exclude, jamais commitables. Utilise -Shared pour les rendre commitables et partages avec l'equipe." -ForegroundColor Cyan
             }
         }
     }

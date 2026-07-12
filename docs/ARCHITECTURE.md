@@ -94,6 +94,30 @@ ou explicite (`-WorkspaceRoot` / `--workspace-root`). Ils refusent :
 
 Les cibles disponibles sont `claude`, `copilot`, `codex`, `both` et `all`.
 
+Par défaut, les fichiers projetés par cible sont ajoutés à `.git/info/exclude`
+du repo cible (motifs précis : `/CLAUDE.md`, `/.claude/agents/maxime*.md`,
+`/.claude/skills/maxime-*/`, `/.claude/hooks/block-destructive-bash.sh`,
+`/.claude/settings.json`, `/.github/copilot-instructions.md`,
+`/.github/agents/maxime*.agent.md`, `/.github/prompts/maxime-*.prompt.md`,
+`/AGENTS.md`, `/.agents/skills/maxime-*/`) — jamais de dossier entier comme
+`/.github/`, pour ne pas masquer du contenu de l'équipe sans rapport avec
+mA.xI.me. `-Shared`/`--shared` desactive cet ajout : les fichiers redeviennent
+commitables (comportement historique, pensé pour un socle partagé en équipe).
+
+`install/uninstall.ps1` et `.sh` sont le miroir exact de l'installateur par
+cible : ils retirent uniquement ce que l'installateur a projeté (jamais un
+fichier non reconnu comme provenant de mA.xI.me), sauvegardent avant
+suppression dans `.bkp/<cible>-uninstall/<horodatage>/`, et retirent aussi les
+entrées `info/exclude` correspondantes. `.wip/` et `.bkp/` sont conservés par
+défaut (`-RemoveState`/`--remove-state` pour les supprimer aussi).
+
+`tools/cleanup-global.ps1` et `.sh` détectent (et suppriment avec `--apply`)
+les reliquats d'installations globales des toutes premières versions de
+mA.xI.me, antérieures au mode repo-only (`~/.claude`, `~/.copilot`,
+`~/.codex`, `~/.agents`). Les fichiers partagés ambigus (`CLAUDE.md`,
+`AGENTS.md` globaux, qui peuvent être le contenu personnel de l'utilisateur)
+ne sont jamais supprimés automatiquement, seulement signalés.
+
 ## Contrôles
 
 - `tools/generate-adapters.ps1` et `tools/generate-adapters.sh` régénèrent les projections.
@@ -105,8 +129,12 @@ Les cibles disponibles sont `claude`, `copilot`, `codex`, `both` et `all`.
 - `tools/check-decisions.ps1` et `tools/check-decisions.sh` exécutent un test par
   décision structurante de `.wip/adr/decisions-log.md` (installation fraîche sur
   fixture temporaire, absence de résidus de nommage legacy, structure `.wip/`,
-  etc.). Toute nouvelle décision référence le test qui la vérifie ; sans test
-  référencé, la décision est incomplète (règle du socle).
+  synchronisation croisée `check-adapter-sync.ps1`/`.sh`, etc.). Toute nouvelle
+  décision référence le test qui la vérifie ; sans test référencé, la décision
+  est incomplète (règle du socle). La synchronisation croisée existe
+  spécifiquement parce que lancer un seul langage ne suffit pas : il compare le
+  générateur de ce langage aux fichiers commités, donc il peut passer même si
+  les deux générateurs divergent entre eux (régression réelle du 2026-07-12).
 
 ## Limites assumées
 
