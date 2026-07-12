@@ -44,7 +44,7 @@ L'état local commun est stocké dans le repository sous `.wip/` :
 - `results/dead-ends.md` : pistes testées et écartées ;
 - `tools/` : sorties de scripts et diagnostics locaux.
 
-Cet état est local au repository et doit être ignoré par Git. Les outils lisent et mettent à jour ce même emplacement ; aucun chemin d'état global n'est utilisé.
+Cet état est local au repository et exclu de Git via `.git/info/exclude` (ajouté automatiquement par l'installateur, pas via un `.gitignore` versionné : cette exclusion doit rester propre à la machine, jamais partagée ni committée). Ne pas créer ni modifier de `.gitignore` pour `.wip/` ou `.bkp/` ; vérifier `.git/info/exclude` avant de proposer quoi que ce soit à ce sujet. Les outils lisent et mettent à jour ce même emplacement ; aucun chemin d'état global n'est utilisé.
 
 ## Portabilité et limites
 

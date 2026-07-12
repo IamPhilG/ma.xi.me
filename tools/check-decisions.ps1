@@ -134,6 +134,18 @@ try {
             }
         }
 
+        $excludePath = (& git -C $fixture rev-parse --git-path info/exclude).Trim()
+        if (![System.IO.Path]::IsPathRooted($excludePath)) {
+            $excludePath = Join-Path $fixture $excludePath
+        }
+        $excludeContent = if (Test-Path $excludePath) { Get-Content -Path $excludePath } else { @() }
+        if (($excludeContent -notcontains '/.wip/') -or ($excludeContent -notcontains '/.bkp/')) {
+            throw ".git/info/exclude ne contient pas /.wip/ et /.bkp/ apres installation (exclusion locale attendue, pas de .gitignore)."
+        }
+        if (Test-Path (Join-Path $fixture '.gitignore')) {
+            throw "Un .gitignore a ete cree pour .wip/.bkp -- l'exclusion doit rester locale via .git/info/exclude uniquement."
+        }
+
         $installedCleanup = Join-Path $fixture '.wip\tools\cleanup-wip.ps1'
         if (!(Test-Path $installedCleanup)) {
             throw 'cleanup-wip.ps1 non distribue dans .wip/tools/ du repo cible.'
