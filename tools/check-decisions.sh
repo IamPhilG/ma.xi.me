@@ -115,6 +115,21 @@ check_fresh_install() {
     fi
   done
 
+  local exclude_path
+  exclude_path="$(git -C "$fixture" rev-parse --git-path info/exclude)"
+  case "$exclude_path" in
+    /*) ;;
+    *) exclude_path="$fixture/$exclude_path" ;;
+  esac
+  if ! grep -qxF '/.wip/' "$exclude_path" 2>/dev/null || ! grep -qxF '/.bkp/' "$exclude_path" 2>/dev/null; then
+    fail "$name" ".git/info/exclude ne contient pas /.wip/ et /.bkp/ apres installation (exclusion locale attendue, pas de .gitignore)."
+    return
+  fi
+  if [ -f "$fixture/.gitignore" ]; then
+    fail "$name" "Un .gitignore a ete cree pour .wip/.bkp -- l'exclusion doit rester locale via .git/info/exclude uniquement."
+    return
+  fi
+
   local installed_cleanup="$fixture/.wip/tools/cleanup-wip.sh"
   if [ ! -f "$installed_cleanup" ]; then
     fail "$name" "cleanup-wip.sh non distribue dans .wip/tools/ du repo cible."
