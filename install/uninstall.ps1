@@ -116,6 +116,27 @@ function Remove-EmptyDirectory {
     }
 }
 
+function Remove-GitExcludeEntries {
+    param(
+        [Parameter(Mandatory = $true)][string]$RepoRoot,
+        [Parameter(Mandatory = $true)][string[]]$Entries
+    )
+    if ($WhatIfPreference) {
+        $Entries | ForEach-Object { Write-Host "What if: remove $_ from the target repo's Git local exclude file" }
+        return
+    }
+    $excludePath = (& git -C $RepoRoot rev-parse --git-path info/exclude).Trim()
+    if (![System.IO.Path]::IsPathRooted($excludePath)) {
+        $excludePath = Join-Path $RepoRoot $excludePath
+    }
+    if (!(Test-Path $excludePath)) { return }
+    $existing = Get-Content -Path $excludePath
+    $filtered = $existing | Where-Object { $_ -notin $Entries }
+    if (@($filtered).Count -ne @($existing).Count) {
+        Set-Content -Path $excludePath -Value $filtered -Encoding UTF8
+    }
+}
+
 function Resolve-GitRepoRoot {
     param([Parameter(Mandatory = $true)][string]$StartPath)
     $resolvedStart = (Resolve-Path -Path $StartPath).Path
@@ -186,6 +207,14 @@ function Uninstall-ClaudeWorkspace {
     Remove-IfExists -Path (Join-Path $claudeRoot 'settings.json') -BackupDir $backupDir
     Remove-EmptyDirectory -Path $claudeRoot
 
+    Remove-GitExcludeEntries -RepoRoot $RepoRoot -Entries @(
+        '/CLAUDE.md',
+        '/.claude/agents/maxime*.md',
+        '/.claude/skills/maxime-*/',
+        '/.claude/hooks/block-destructive-bash.sh',
+        '/.claude/settings.json'
+    )
+
     if (-not $WhatIfPreference) {
         Write-Host "mA.xI.me retire pour Claude (workspace)." -ForegroundColor Green
         if (-not $RemoveState) { Write-Host "Backups locaux: $backupDir" }
@@ -218,6 +247,12 @@ function Uninstall-CopilotWorkspace {
 
     Remove-EmptyDirectory -Path $ghRoot
 
+    Remove-GitExcludeEntries -RepoRoot $RepoRoot -Entries @(
+        '/.github/copilot-instructions.md',
+        '/.github/agents/maxime*.agent.md',
+        '/.github/prompts/maxime-*.prompt.md'
+    )
+
     if (-not $WhatIfPreference) {
         Write-Host "mA.xI.me retire pour Copilot (workspace)." -ForegroundColor Green
         if (-not $RemoveState) { Write-Host "Backups locaux: $backupDir" }
@@ -239,6 +274,11 @@ function Uninstall-CodexWorkspace {
         Remove-EmptyDirectory -Path $skillsTargetRoot
         Remove-EmptyDirectory -Path (Join-Path $RepoRoot '.agents')
     }
+
+    Remove-GitExcludeEntries -RepoRoot $RepoRoot -Entries @(
+        '/AGENTS.md',
+        '/.agents/skills/maxime-*/'
+    )
 
     if (-not $WhatIfPreference) {
         Write-Host "mA.xI.me retire pour Codex (workspace)." -ForegroundColor Green

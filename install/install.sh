@@ -2,18 +2,24 @@
 # Installe mA.xI.me en mode repo-only pour Claude Code, GitHub Copilot et/ou Codex.
 # Les modes d'installation globaux ont ete retires.
 # Initialise aussi .wip/ et les exclusions Git locales du repo cible.
+# Par defaut, les fichiers projetes sont eux aussi ajoutes a .git/info/exclude :
+# installation strictement locale, jamais commitable par erreur. --shared
+# revient au comportement partage (fichiers commitables, pense pour etre
+# commite avec l'equipe).
 # Usage :
-#   ./install.sh [--dry-run] [--target claude|copilot|codex|both|all] [--copilot-scope user|workspace] [--workspace-root path]
+#   ./install.sh [--dry-run] [--target claude|copilot|codex|both|all] [--copilot-scope user|workspace] [--workspace-root path] [--shared]
 set -euo pipefail
 
 dry=0
 target="all"
 copilot_scope="workspace"
 workspace_root=""
+shared=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) dry=1 ;;
+    --shared) shared=1 ;;
     --target)
       shift
       if [ $# -eq 0 ] || [ -z "${1:-}" ] || [ "${1#--}" != "$1" ]; then
@@ -147,6 +153,19 @@ EOF
     fi
   done
 
+  add_git_exclude_entries "$repo_root" '/.wip/' '/.bkp/'
+}
+
+add_git_exclude_entries() {
+  local repo_root="$1"
+  shift
+  if [ "$dry" = 1 ]; then
+    for entry in "$@"; do
+      echo "[dry-run] add $entry to the target repo's Git local exclude file"
+    done
+    return
+  fi
+  local exclude_path
   exclude_path="$(git -C "$repo_root" rev-parse --git-path info/exclude)"
   case "$exclude_path" in
     /*) ;;
@@ -154,7 +173,7 @@ EOF
   esac
   mkdir -p "$(dirname "$exclude_path")"
   touch "$exclude_path"
-  for entry in '/.wip/' '/.bkp/'; do
+  for entry in "$@"; do
     grep -Fxq "$entry" "$exclude_path" || printf '%s\n' "$entry" >> "$exclude_path"
   done
 }
@@ -359,27 +378,60 @@ install_codex_workspace() {
   fi
 }
 
+install_claude_with_exclude() {
+  install_claude_workspace "$1"
+  [ "$shared" = 1 ] || add_git_exclude_entries "$1" \
+    '/CLAUDE.md' \
+    '/.claude/agents/maxime*.md' \
+    '/.claude/skills/maxime-*/' \
+    '/.claude/hooks/block-destructive-bash.sh' \
+    '/.claude/settings.json'
+}
+
+install_copilot_with_exclude() {
+  install_copilot_workspace "$1"
+  [ "$shared" = 1 ] || add_git_exclude_entries "$1" \
+    '/.github/copilot-instructions.md' \
+    '/.github/agents/maxime*.agent.md' \
+    '/.github/prompts/maxime-*.prompt.md'
+}
+
+install_codex_with_exclude() {
+  install_codex_workspace "$1"
+  [ "$shared" = 1 ] || add_git_exclude_entries "$1" \
+    '/AGENTS.md' \
+    '/.agents/skills/maxime-*/'
+}
+
 assert_repo_only_mode
 workspace_repo_root="$(resolve_workspace_repo_root)"
 initialize_maxime_local_state "$workspace_repo_root"
 
 case "$target" in
   claude)
-    install_claude_workspace "$workspace_repo_root"
+    install_claude_with_exclude "$workspace_repo_root"
     ;;
   copilot)
-    install_copilot_workspace "$workspace_repo_root"
+    install_copilot_with_exclude "$workspace_repo_root"
     ;;
   codex)
-    install_codex_workspace "$workspace_repo_root"
+    install_codex_with_exclude "$workspace_repo_root"
     ;;
   both)
-    install_claude_workspace "$workspace_repo_root"
-    install_copilot_workspace "$workspace_repo_root"
+    install_claude_with_exclude "$workspace_repo_root"
+    install_copilot_with_exclude "$workspace_repo_root"
     ;;
   all)
-    install_claude_workspace "$workspace_repo_root"
-    install_copilot_workspace "$workspace_repo_root"
-    install_codex_workspace "$workspace_repo_root"
+    install_claude_with_exclude "$workspace_repo_root"
+    install_copilot_with_exclude "$workspace_repo_root"
+    install_codex_with_exclude "$workspace_repo_root"
     ;;
 esac
+
+if [ "$dry" = 0 ]; then
+  if [ "$shared" = 1 ]; then
+    echo -e "\033[36mMode partage : les fichiers installes restent commitables (comme avant).\033[0m"
+  else
+    echo -e "\033[36mMode local (par defaut) : les fichiers installes sont exclus localement via .git/info/exclude, jamais commitables. Utilise --shared pour les rendre commitables et partages avec l'equipe.\033[0m"
+  fi
+fi

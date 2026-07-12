@@ -220,6 +220,46 @@ check_fresh_install() {
   pass "$name"
 }
 
+# Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
+# .git/info/exclude -- the whole install stays local, nothing commitable by
+# accident. --shared restores the old commitable behavior. uninstall.sh removes
+# the same entries it added.
+check_local_by_default() {
+  local name="installation locale par defaut (info/exclude), --shared rend commitable, uninstall nettoie"
+
+  local fixture_default="$temp_root/fixture-local"
+  mkdir -p "$fixture_default"
+  (cd "$fixture_default" && git init -q)
+  bash "$repository_root/install/install.sh" --target claude --workspace-root "$fixture_default" >/dev/null
+  local status_default
+  status_default="$(git -C "$fixture_default" status --short)"
+  if [ -n "$status_default" ]; then
+    fail "$name" "installation par defaut : git status devrait etre vide (tout exclu), trouve: $status_default"
+    return
+  fi
+
+  bash "$repository_root/install/uninstall.sh" --target claude --workspace-root "$fixture_default" >/dev/null
+  if grep -qxF '/CLAUDE.md' "$fixture_default/.git/info/exclude"; then
+    fail "$name" "uninstall n'a pas retire /CLAUDE.md de .git/info/exclude."
+    return
+  fi
+  if ! grep -qxF '/.wip/' "$fixture_default/.git/info/exclude" || ! grep -qxF '/.bkp/' "$fixture_default/.git/info/exclude"; then
+    fail "$name" "uninstall a retire /.wip/ ou /.bkp/ de .git/info/exclude -- ne doit retirer que les entrees qu'il a ajoutees."
+    return
+  fi
+
+  local fixture_shared="$temp_root/fixture-shared"
+  mkdir -p "$fixture_shared"
+  (cd "$fixture_shared" && git init -q)
+  bash "$repository_root/install/install.sh" --target claude --workspace-root "$fixture_shared" --shared >/dev/null
+  if ! git -C "$fixture_shared" status --short | grep -q 'CLAUDE.md$'; then
+    fail "$name" "--shared : CLAUDE.md devrait apparaitre en non-suivi (commitable) dans git status."
+    return
+  fi
+
+  pass "$name"
+}
+
 check_tools_root
 check_core_tools_source
 check_no_dated_specs
@@ -229,6 +269,7 @@ check_no_legacy_copilot_tools
 check_no_allowed_tools_in_codex_skills
 check_cross_generator_sync
 check_fresh_install
+check_local_by_default
 
 echo
 if [ "${#failures[@]}" -gt 0 ]; then

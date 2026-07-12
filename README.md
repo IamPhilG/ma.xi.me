@@ -66,6 +66,30 @@ L'installateur initialise également l'état partagé local `.wip/` :
 Il ajoute aussi `/.wip/` et `/.bkp/` au fichier Git local `info/exclude` du repo
 cible. Ces données ne sont donc pas synchronisées.
 
+### Local par défaut, partagé sur demande
+
+**Par défaut, l'installation entière reste locale à ta machine.** Les fichiers
+projetés (`CLAUDE.md`, `.claude/`, `.github/copilot-instructions.md`,
+`.github/agents/maxime*`, `.github/prompts/maxime-*`, `AGENTS.md`,
+`.agents/skills/maxime-*`) sont ajoutés à `.git/info/exclude` (local, jamais
+commité), exactement comme `.wip/`/`.bkp/`. Rien n'est commitable par erreur,
+même avec `git add -A`.
+
+Utilise `-Shared` (PowerShell) / `--shared` (Bash) pour revenir au
+comportement partagé : les fichiers deviennent commitables, pensés pour être
+partagés avec toute l'équipe via le repository.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install\install.ps1 -Target all -Shared
+```
+
+```bash
+./install/install.sh --target all --shared
+```
+
+`install/uninstall.ps1` et `.sh` retirent aussi ces entrées de
+`info/exclude` en même temps que les fichiers (voir plus bas).
+
 ### Windows
 
 Depuis le repo cible :
