@@ -116,3 +116,10 @@ Les cibles disponibles sont `claude`, `copilot`, `codex`, `both` et `all`.
   aux extensions Claude Code ou Codex.
 - La découverte réelle des adaptateurs reste à valider manuellement dans les versions
   ciblées de Claude Code, VS Code Copilot et Codex.
+- La restriction d'outils par workflow (`allowed-tools` côté Claude, `tools:` côté
+  Copilot) n'a pas d'équivalent frontmatter côté Codex — l'extension VS Code Codex ne
+  le supporte pas. Pour Codex, un workflow lecture seule (ex. `maxime-review`) reste
+  une consigne textuelle, pas une garantie technique ; la garantie réelle passe par le
+  sandbox de session (`codex exec --sandbox read-only`), pas par le fichier skill. Reste
+  à vérifier si l'extension VS Code Codex offre un mécanisme équivalent ailleurs que le
+  frontmatter (non exploré, voir issue de suivi).

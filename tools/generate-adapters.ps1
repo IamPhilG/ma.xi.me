@@ -62,6 +62,12 @@ $socle
 - mA.xI.me workflows are available under `.agents/skills/`.
 - The logical Codex orchestrator identity is `maxi-codex` (workflow-based, no picker agent).
 - Use these workflows for structured work; do not claim an agent mechanism that the host does not provide.
+- Codex skill files carry no tool-restriction frontmatter (unlike Claude's `allowed-tools`
+  or Copilot's `tools:`): VS Code's Codex extension does not support one. Read-only
+  workflows (e.g. `maxime-review`) rely on their own text instruction, not a mechanical
+  guarantee. For an enforced read-only guarantee, run the Codex session itself in a
+  read-only sandbox (e.g. `codex exec --sandbox read-only`) rather than expecting the
+  skill file to restrict it.
 "@
 $copilotAdapter = @"
 ---
