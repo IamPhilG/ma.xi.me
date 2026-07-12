@@ -1,7 +1,7 @@
 ---
 name: maxi-copilot-reviewer
 description: Sous-agent de revue read-only pour analyser diffs, modules et risques.
-tools: [read_file, grep_search, file_search]
+tools: [read, grep, search]
 user-invocable: true
 handoffs:
   - label: Retour a maxime

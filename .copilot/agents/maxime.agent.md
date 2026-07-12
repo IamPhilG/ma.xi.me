@@ -1,7 +1,7 @@
 ---
 name: maxi-copilot
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
-tools: [read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file, runSubagent]
+tools: [read, grep, search, execute, edit, agent]
 agents: [maxi-copilot-reviewer, maxi-copilot-reviewer-shell]
 user-invocable: true
 ---

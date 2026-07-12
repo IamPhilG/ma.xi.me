@@ -2,7 +2,7 @@
 name: maxime-setup
 description: mA.xI.me workflow generated from the canonical source.
 agent: maxi-copilot
-tools: [read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file]
+tools: [read, grep, search, execute, edit]
 ---
 
 # mA.xI.me — Initialisation d'un repository

@@ -94,6 +94,24 @@ check_no_legacy_naming() {
   fi
 }
 
+# Decision: Copilot tool identifiers use VS Code's current names (read, grep, search,
+# execute, edit, agent), never the renamed/unknown legacy names that VS Code's own
+# agent-file linter flagged (read_file, grep_search, file_search, run_in_terminal,
+# apply_patch, create_file, runSubagent).
+check_no_legacy_copilot_tools() {
+  local name="aucun nom d'outil Copilot obsolete (read_file/grep_search/file_search/run_in_terminal/apply_patch/create_file/runSubagent)"
+  local hits
+  hits="$(grep -rEln 'read_file|grep_search|file_search|run_in_terminal|apply_patch|create_file|runSubagent' \
+    "$repository_root/.copilot" \
+    "$repository_root/tools/generate-adapters.ps1" "$repository_root/tools/generate-adapters.sh" \
+    2>/dev/null || true)"
+  if [ -n "$hits" ]; then
+    fail "$name" "Noms d'outils Copilot obsoletes trouves: $hits"
+  else
+    pass "$name"
+  fi
+}
+
 # Decision: a fresh install produces the standardized .wip/ layout and distributes
 # cleanup-wip, and cleanup-wip runs safely even without .wip/tests/ present
 # (regression test for the set -e / bare `return` bug fixed 2026-07-11).
@@ -159,6 +177,7 @@ check_core_tools_source
 check_no_dated_specs
 check_specs_md_removed
 check_no_legacy_naming
+check_no_legacy_copilot_tools
 check_fresh_install
 
 echo

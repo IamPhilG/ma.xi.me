@@ -101,7 +101,7 @@ write_file "$root/.copilot/agents/maxime.agent.md" <<EOF
 ---
 name: maxi-copilot
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
-tools: [read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file, runSubagent]
+tools: [read, grep, search, execute, edit, agent]
 agents: [maxi-copilot-reviewer, maxi-copilot-reviewer-shell]
 user-invocable: true
 ---
@@ -116,10 +116,10 @@ while IFS= read -r workflow; do
   body="$(read_core "$workflow")"
   if [ "$name" = "maxime-review" ]; then
     claude_tools='Read, Glob, Grep, Bash'
-    copilot_tools='[read_file, grep_search, file_search]'
+    copilot_tools='[read, grep, search]'
   else
     claude_tools='Read, Glob, Grep, Bash, Write, Edit'
-    copilot_tools='[read_file, grep_search, file_search, run_in_terminal, apply_patch, create_file]'
+    copilot_tools='[read, grep, search, execute, edit]'
   fi
   write_file "$root/skills/$name/SKILL.md" <<EOF
 ---
