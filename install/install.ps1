@@ -39,15 +39,18 @@ Get-Help .\install\install.ps1 -Detailed
 Affiche cette aide detaillee depuis la racine du repository mA.xI.me.
 
 .EXAMPLE
-.\install\install.ps1 -Target all -WorkspaceRoot C:\chemin\vers\repo-cible
+.\install\install.ps1 -Target all -WorkspaceRoot "C:\chemin\vers\repo-cible"
 
 Installe Claude Code, Copilot et Codex dans le repository cible, depuis la
-racine du repository mA.xI.me.
+racine du repository mA.xI.me. Mets le chemin entre guillemets s'il contient
+des espaces.
 
 .EXAMPLE
-powershell -ExecutionPolicy Bypass -File C:\chemin\vers\ma.xi.me\install\install.ps1 -Target copilot -WorkspaceRoot C:\chemin\vers\repo-cible -WhatIf
+powershell -ExecutionPolicy Bypass -File "C:\chemin\vers\ma.xi.me\install\install.ps1" -Target copilot -WorkspaceRoot "C:\chemin\vers\repo-cible" -WhatIf
 
 Previsualise l'installation Copilot depuis n'importe quel repertoire, sans ecrire.
+Guillemets obligatoires si l'un des deux chemins contient un espace (ex. sous
+OneDrive ou un profil "Prenom Nom").
 
 .NOTES
 Utilise `Get-Help <chemin-vers-install.ps1> -Full` pour afficher l'aide complete.
