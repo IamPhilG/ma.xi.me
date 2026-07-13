@@ -113,7 +113,7 @@ $copilotAgent = @"
 ---
 name: maxi-copilot
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
-tools: [read, search, execute, edit, agent]
+tools: [read, search, execute, edit, agent, vscode, web]
 agents: [maxi-copilot-reviewer, maxi-copilot-reviewer-shell]
 user-invocable: true
 ---
