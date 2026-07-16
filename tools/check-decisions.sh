@@ -20,7 +20,7 @@ fail() { echo "FAIL: $1 -- $2"; failures+=("$1"); }
 # host-distributed tools like cleanup-wip.*.
 check_tools_root() {
   local name="tools/ ne contient que les scripts de maintenance du repo source"
-  local expected="check-adapter-sync.ps1 check-adapter-sync.sh check-codex-skills-sync.ps1 check-codex-skills-sync.sh check-decisions.ps1 check-decisions.sh cleanup-global.ps1 cleanup-global.sh generate-adapters.ps1 generate-adapters.sh"
+  local expected="check-adapter-sync.ps1 check-adapter-sync.sh check-decisions.ps1 check-decisions.sh cleanup-global.ps1 cleanup-global.sh generate-adapters.ps1 generate-adapters.sh"
   local unexpected=()
   for f in "$repository_root"/tools/*; do
     local base
@@ -82,10 +82,8 @@ check_no_legacy_naming() {
   local name='aucun residu .wip/maxime ou identifiant agent "maxime" nu dans le source portable'
   local hits
   hits="$(grep -rEn '\.wip/maxime|agent: *maxime\b|name: *maxime\b($|[^-])' \
-    "$repository_root/core" "$repository_root/agents" "$repository_root/skills" \
-    "$repository_root/.agents" "$repository_root/.copilot" "$repository_root/.codex" \
-    "$repository_root/install" \
-    "$repository_root/CLAUDE.md" "$repository_root/AGENTS.md" "$repository_root/README.md" \
+    "$repository_root/core" "$repository_root/install" \
+    "$repository_root/README.md" \
     2>/dev/null || true)"
   if [ -n "$hits" ]; then
     fail "$name" "Residus trouves: $hits"
@@ -103,14 +101,14 @@ check_no_legacy_copilot_tools() {
   local name="aucun nom d'outil Copilot obsolete (read_file/grep_search/file_search/run_in_terminal/apply_patch/create_file/runSubagent/grep)"
   local hits
   hits="$(grep -rEln 'read_file|grep_search|file_search|run_in_terminal|apply_patch|create_file|runSubagent' \
-    "$repository_root/.copilot" \
+    "$repository_root/install/Packaged/.copilot" \
     "$repository_root/tools/generate-adapters.ps1" "$repository_root/tools/generate-adapters.sh" \
     2>/dev/null || true)"
   if [ -n "$hits" ]; then
     fail "$name" "Noms d'outils Copilot obsoletes trouves: $hits"
     return
   fi
-  hits="$(grep -rEln '^tools:.*\bgrep\b' "$repository_root/.copilot" 2>/dev/null || true)"
+  hits="$(grep -rEln '^tools:.*\bgrep\b' "$repository_root/install/Packaged/.copilot" 2>/dev/null || true)"
   if [ -n "$hits" ]; then
     fail "$name" "'grep' n'est pas un outil Copilot valide (utiliser 'search'): $hits"
   else
@@ -126,7 +124,7 @@ check_no_legacy_copilot_tools() {
 check_no_allowed_tools_in_codex_skills() {
   local name="aucun allowed-tools dans .agents/skills/*/SKILL.md (Codex)"
   local hits
-  hits="$(grep -rEln '^allowed-tools:' "$repository_root/.agents/skills" 2>/dev/null || true)"
+  hits="$(grep -rEln '^allowed-tools:' "$repository_root/install/Packaged/.agents/skills" 2>/dev/null || true)"
   if [ -n "$hits" ]; then
     fail "$name" "allowed-tools trouve dans une SKILL.md Codex: $hits"
   else
@@ -174,7 +172,7 @@ check_fresh_install() {
     return
   fi
 
-  for dir in memory specs adr results tools; do
+  for dir in memory specs adr results kb tools; do
     if [ ! -d "$fixture/.wip/$dir" ]; then
       fail "$name" "Repertoire .wip/$dir manquant apres installation."
       return
@@ -191,8 +189,8 @@ check_fresh_install() {
     fail "$name" ".git/info/exclude ne contient pas /.wip/ et /.bkp/ apres installation (exclusion locale attendue, pas de .gitignore)."
     return
   fi
-  if [ -f "$fixture/.gitignore" ]; then
-    fail "$name" "Un .gitignore a ete cree pour .wip/.bkp -- l'exclusion doit rester locale via .git/info/exclude uniquement."
+  if [ -f "$fixture/.gitignore" ] && (grep -qxF '/.wip/' "$fixture/.gitignore" || grep -qxF '/.bkp/' "$fixture/.gitignore"); then
+    fail "$name" "/.wip/ ou /.bkp/ trouve dans .gitignore -- cette exclusion doit rester locale via .git/info/exclude uniquement."
     return
   fi
 
@@ -221,11 +219,13 @@ check_fresh_install() {
 }
 
 # Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
-# .git/info/exclude -- the whole install stays local, nothing commitable by
-# accident. --shared restores the old commitable behavior. uninstall.sh removes
-# the same entries it added.
+# .git/info/exclude AND to .gitignore -- the whole install stays local via exclude,
+# and .gitignore documents/enforces the same patterns so the tool is never
+# accidentally committed even from a different clone. --shared restores the old
+# commitable behavior (neither exclude nor .gitignore touched). uninstall.sh
+# removes the same entries it added, from both files.
 check_local_by_default() {
-  local name="installation locale par defaut (info/exclude), --shared rend commitable, uninstall nettoie"
+  local name="installation locale par defaut (info/exclude + .gitignore), --shared rend commitable, uninstall nettoie"
 
   local fixture_default="$temp_root/fixture-local"
   mkdir -p "$fixture_default"
@@ -233,8 +233,16 @@ check_local_by_default() {
   bash "$repository_root/install/install.sh" --target claude --workspace-root "$fixture_default" >/dev/null
   local status_default
   status_default="$(git -C "$fixture_default" status --short)"
-  if [ -n "$status_default" ]; then
-    fail "$name" "installation par defaut : git status devrait etre vide (tout exclu), trouve: $status_default"
+  if [ -n "$(echo "$status_default" | grep -v '\.gitignore$')" ]; then
+    fail "$name" "installation par defaut : seul .gitignore devrait apparaitre en non-suivi (le reste doit etre exclu), trouve: $status_default"
+    return
+  fi
+  if [ -z "$(echo "$status_default" | grep '\.gitignore$')" ]; then
+    fail "$name" "installation par defaut : .gitignore devrait avoir ete cree et apparaitre en non-suivi."
+    return
+  fi
+  if ! grep -qxF '/CLAUDE.md' "$fixture_default/.gitignore"; then
+    fail "$name" "installation par defaut : /CLAUDE.md absent de .gitignore."
     return
   fi
 
@@ -247,6 +255,10 @@ check_local_by_default() {
     fail "$name" "uninstall a retire /.wip/ ou /.bkp/ de .git/info/exclude -- ne doit retirer que les entrees qu'il a ajoutees."
     return
   fi
+  if grep -qxF '/CLAUDE.md' "$fixture_default/.gitignore"; then
+    fail "$name" "uninstall n'a pas retire /CLAUDE.md de .gitignore."
+    return
+  fi
 
   local fixture_shared="$temp_root/fixture-shared"
   mkdir -p "$fixture_shared"
@@ -256,6 +268,102 @@ check_local_by_default() {
     fail "$name" "--shared : CLAUDE.md devrait apparaitre en non-suivi (commitable) dans git status."
     return
   fi
+  if [ -f "$fixture_shared/.gitignore" ]; then
+    fail "$name" "--shared : aucun .gitignore ne devrait etre cree."
+    return
+  fi
+
+  pass "$name"
+}
+
+# Decision: install/lib/install-claude.sh (and the other per-host scripts) must be
+# callable standalone, without going through install.sh --target. This is what lets
+# an agent (Maxime Init) compose the exact pieces it needs instead of negotiating a
+# --target flag.
+check_standalone_lib_script() {
+  local name="install/lib/install-claude.sh fonctionne seul, sans passer par install.sh"
+  local fixture="$temp_root/fixture-standalone-lib"
+  mkdir -p "$fixture"
+  (cd "$fixture" && git init -q)
+  if ! bash "$repository_root/install/lib/install-claude.sh" --repo-root "$fixture" >/dev/null; then
+    fail "$name" "install-claude.sh execute seul a echoue."
+    return
+  fi
+  if [ ! -f "$fixture/CLAUDE.md" ]; then
+    fail "$name" "install-claude.sh execute seul n'a pas cree CLAUDE.md."
+    return
+  fi
+  if [ ! -f "$fixture/.claude/agents/maxime.md" ]; then
+    fail "$name" "install-claude.sh execute seul n'a pas cree .claude/agents/maxime.md."
+    return
+  fi
+  pass "$name"
+}
+
+# Decision: each workflow is generated as a dedicated agent (Claude + Copilot) with
+# the tool-scoping its own text justifies, not the orchestrator's full tool set.
+# Codex has no agent/tools mechanism, so it is excluded here (see the allowed-tools
+# decision above). maxime-init is the only workflow allowed to skip the bootstrap
+# guard, since it is what creates .wip/ in the first place.
+check_workflow_agent_scoping() {
+  local name="chaque agent de workflow genere a le tool-scoping et la garde bootstrap attendus"
+  local write_capable="maxime-plan maxime-handoff maxime-retrofit maxime-kb"
+  local read_only="maxime-start maxime-init maxime-review"
+  local claude_agents_dir="$repository_root/install/Packaged/agents"
+  local copilot_agents_dir="$repository_root/install/Packaged/.copilot/agents"
+
+  for workflow_name in $write_capable $read_only; do
+    local claude_agent_path="$claude_agents_dir/$workflow_name.md"
+    if [ ! -f "$claude_agent_path" ]; then
+      fail "$name" "Agent Claude manquant: $claude_agent_path"
+      return
+    fi
+    local should_have_write=0
+    case " $write_capable " in
+      *" $workflow_name "*) should_have_write=1 ;;
+    esac
+    local has_write=0
+    grep -qE '^tools:.*\bWrite\b' "$claude_agent_path" && has_write=1
+    if [ "$should_have_write" = 1 ] && [ "$has_write" = 0 ]; then
+      fail "$name" "$workflow_name (Claude) devrait avoir Write dans tools: mais ne l'a pas."
+      return
+    fi
+    if [ "$should_have_write" = 0 ] && [ "$has_write" = 1 ]; then
+      fail "$name" "$workflow_name (Claude) ne devrait pas avoir Write dans tools:."
+      return
+    fi
+
+    local copilot_agent_path="$copilot_agents_dir/$workflow_name.agent.md"
+    if [ ! -f "$copilot_agent_path" ]; then
+      fail "$name" "Agent Copilot manquant: $copilot_agent_path"
+      return
+    fi
+    local has_edit=0
+    grep -qE '^tools:.*\bedit\b' "$copilot_agent_path" && has_edit=1
+    if [ "$should_have_write" = 1 ] && [ "$has_edit" = 0 ]; then
+      fail "$name" "$workflow_name (Copilot) devrait avoir edit dans tools: mais ne l'a pas."
+      return
+    fi
+    if [ "$should_have_write" = 0 ] && [ "$has_edit" = 1 ]; then
+      fail "$name" "$workflow_name (Copilot) ne devrait pas avoir edit dans tools:."
+      return
+    fi
+
+    local expect_guard=1
+    [ "$workflow_name" = "maxime-init" ] && expect_guard=0
+    local has_guard_claude=0
+    local has_guard_copilot=0
+    grep -q "demander l'autorisation explicite" "$claude_agent_path" && has_guard_claude=1
+    grep -q "demander l'autorisation explicite" "$copilot_agent_path" && has_guard_copilot=1
+    if [ "$expect_guard" = 1 ] && { [ "$has_guard_claude" = 0 ] || [ "$has_guard_copilot" = 0 ]; }; then
+      fail "$name" "$workflow_name : garde bootstrap (redirection vers Maxime Init) manquante."
+      return
+    fi
+    if [ "$expect_guard" = 0 ] && { [ "$has_guard_claude" = 1 ] || [ "$has_guard_copilot" = 1 ]; }; then
+      fail "$name" "$workflow_name : ne devrait pas contenir la garde bootstrap (c'est Maxime Init lui-meme)."
+      return
+    fi
+  done
 
   pass "$name"
 }
@@ -270,6 +378,8 @@ check_no_allowed_tools_in_codex_skills
 check_cross_generator_sync
 check_fresh_install
 check_local_by_default
+check_standalone_lib_script
+check_workflow_agent_scoping
 
 echo
 if [ "${#failures[@]}" -gt 0 ]; then

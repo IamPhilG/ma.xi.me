@@ -28,17 +28,17 @@ try {
     & (Join-Path $tempRoot 'generate-adapters.ps1') -RepositoryRoot $tempRoot
 
     $relativePaths = @(
-        'CLAUDE.md',
-        'AGENTS.md',
-        '.codex/AGENTS.md',
-        '.copilot/copilot-instructions.md',
-        'agents/maxime.md',
-        '.copilot/agents/maxime.agent.md'
+        'install/Packaged/CLAUDE.md',
+        'install/Packaged/AGENTS.md',
+        'install/Packaged/.codex/AGENTS.md',
+        'install/Packaged/.copilot/copilot-instructions.md',
+        'install/Packaged/agents/maxime.md',
+        'install/Packaged/.copilot/agents/maxime.agent.md'
     )
     $workflows = Get-ChildItem -Path (Join-Path $repositoryRoot 'core\workflows') -Filter 'maxime-*.md' -File
     foreach ($workflow in $workflows) {
         $name = [System.IO.Path]::GetFileNameWithoutExtension($workflow.Name)
-        $relativePaths += "skills/$name/SKILL.md", ".agents/skills/$name/SKILL.md", ".copilot/prompts/$name.prompt.md"
+        $relativePaths += "install/Packaged/agents/$name.md", "install/Packaged/.agents/skills/$name/SKILL.md", "install/Packaged/.copilot/agents/$name.agent.md"
     }
 
     $problems = New-Object System.Collections.Generic.List[string]

@@ -10,6 +10,7 @@ fi
 [ -d "$root/core" ] || { echo "Repository root not found from '$root' (missing core/)." >&2; exit 1; }
 core_root="$root/core"
 workflow_root="$core_root/workflows"
+packaged_root="$root/install/Packaged"
 
 read_core() {
   local path="$1"
@@ -24,7 +25,7 @@ write_file() {
 }
 
 socle="$(read_core "$core_root/socle.md")"
-write_file "$root/CLAUDE.md" <<EOF
+write_file "$packaged_root/CLAUDE.md" <<EOF
 # CLAUDE.md - mA.xI.me adapter for Claude Code
 
 Generated from core/socle.md. Do not edit directly.
@@ -33,11 +34,11 @@ $socle
 
 ## Claude Code extension
 
-- mA.xI.me skills are available under .claude/skills/.
+- mA.xI.me workflows are available as dedicated sub-agents under .claude/agents/.
 - The maxi-claude orchestrator is available under .claude/agents/.
 - The hook configured in .claude/settings.json, when present, is Claude-specific protection and is not a portable guarantee.
 EOF
-write_file "$root/AGENTS.md" <<EOF
+write_file "$packaged_root/AGENTS.md" <<EOF
 # AGENTS.md - mA.xI.me adapter for Codex
 
 Generated from core/socle.md. Do not edit directly.
@@ -55,7 +56,7 @@ $socle
   an enforced read-only guarantee, run the Codex session itself in a read-only sandbox
   (e.g. codex exec --sandbox read-only) rather than expecting the skill file to restrict it.
 EOF
-write_file "$root/.codex/AGENTS.md" <<EOF
+write_file "$packaged_root/.codex/AGENTS.md" <<EOF
 # AGENTS.md - mA.xI.me adapter for Codex
 
 Generated from core/socle.md. Do not edit directly.
@@ -73,7 +74,7 @@ $socle
   an enforced read-only guarantee, run the Codex session itself in a read-only sandbox
   (e.g. codex exec --sandbox read-only) rather than expecting the skill file to restrict it.
 EOF
-write_file "$root/.copilot/copilot-instructions.md" <<EOF
+write_file "$packaged_root/.copilot/copilot-instructions.md" <<EOF
 ---
 applyTo: "**"
 ---
@@ -86,19 +87,30 @@ $socle
 
 ## GitHub Copilot extension
 
-- The maxi-copilot agent is available under .github/agents/.
-- Workflows are available under .github/prompts/.
+- The maxi-copilot agent is available under .github/agents/, along with a dedicated sub-agent per workflow.
 - Capabilities and permissions depend on VS Code and the Copilot extension; do not claim a Claude hook or a host capability that is unavailable.
 EOF
 
-orchestrator_body='# mA.xI.me - Orchestrator
+# Bootstrap guard: prepended to every generated workflow agent/skill except
+# maxime-init itself, which is the one thing allowed to run before .wip/
+# exists. See decisions-log 2026-07-14 (workflows -> dedicated agents).
+bootstrap_guard='> Prerequis : verifier que ce repository a deja ete initialise avec mA.xI.me
+> (presence de .wip/ et .wip/adr/decisions-log.md). Si absent, s'"'"'arreter
+> immediatement, l'"'"'expliquer, et demander l'"'"'autorisation explicite de lancer
+> Maxime Init avant de continuer. Ne jamais lancer Maxime Init automatiquement
+> sans confirmation.'
 
-mA.xI.me is the single orchestrator for structured work. It applies the common core and orchestrates maxime-start, maxime-plan, maxime-handoff, maxime-setup, maxime-retrofit, maxime-review, and maxime-kb.
+orchestrator_body="# mA.xI.me - Orchestrator
 
-For significant work, start with maxime-start, create a specification with maxime-plan, wait for approval before writes, then conclude with verification and a handoff when needed.
+mA.xI.me is the single orchestrator for structured work. It applies the common core and delegates to a dedicated sub-agent per workflow: maxime-start, maxime-plan, maxime-handoff, maxime-init, maxime-retrofit, maxime-review, and maxime-kb. Each sub-agent covers a small part of the workflow; talking to mA.xI.me directly always applies the method below, never a bare skill lookup.
 
-The shared state is always .wip/. Host-specific extensions are additions and do not replace the common core.'
-write_file "$root/agents/maxime.md" <<EOF
+$bootstrap_guard
+
+For significant work, delegate to maxime-start, create a specification via maxime-plan, wait for approval before writes, then conclude with verification and a handoff when needed.
+
+The shared state is always .wip/. Host-specific extensions are additions and do not replace the common core."
+
+write_file "$packaged_root/agents/maxime.md" <<EOF
 ---
 name: maxi-claude
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
@@ -106,57 +118,91 @@ tools: Read, Glob, Grep, Bash, Write, Edit
 ---
 
 $orchestrator_body
+
+Delegate to the matching sub-agent (via the Task tool) for each phase: maxi-claude-start, maxi-claude-plan, maxi-claude-handoff, maxi-claude-init, maxi-claude-retrofit, maxi-claude-review, maxi-claude-kb.
 EOF
-write_file "$root/.copilot/agents/maxime.agent.md" <<EOF
+write_file "$packaged_root/.copilot/agents/maxime.agent.md" <<EOF
 ---
 name: maxi-copilot
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
 tools: [read, search, execute, edit, agent, vscode, web]
-agents: [maxi-copilot-reviewer, maxi-copilot-reviewer-shell]
+agents: [maxi-copilot-start, maxi-copilot-plan, maxi-copilot-handoff, maxi-copilot-init, maxi-copilot-retrofit, maxi-copilot-review, maxi-copilot-kb]
 user-invocable: true
 ---
 
 $orchestrator_body
 EOF
 
+# Tool-scoping per workflow: derived from what each workflow's own text
+# actually does (see decisions-log 2026-07-14). Codex has no agent/tools
+# mechanism, so it gets no equivalent -- its skill carries the bootstrap
+# guard as text only, same as maxime-review already relied on text alone.
+declare -A claude_tools_by_workflow=(
+  [maxime-start]='Read, Glob, Grep, Bash'
+  [maxime-plan]='Read, Glob, Grep, Bash, Write'
+  [maxime-handoff]='Read, Glob, Grep, Bash, Write'
+  [maxime-init]='Read, Glob, Grep, Bash'
+  [maxime-retrofit]='Read, Glob, Grep, Bash, Write'
+  [maxime-review]='Read, Glob, Grep, Bash'
+  [maxime-kb]='Read, Glob, Grep, Bash, Write'
+)
+declare -A copilot_tools_by_workflow=(
+  [maxime-start]='[read, search, execute]'
+  [maxime-plan]='[read, search, execute, edit]'
+  [maxime-handoff]='[read, search, execute, edit]'
+  [maxime-init]='[read, search, execute]'
+  [maxime-retrofit]='[read, search, execute, edit]'
+  [maxime-review]='[read, search]'
+  [maxime-kb]='[read, search, execute, edit]'
+)
+
 workflow_count=0
 while IFS= read -r workflow; do
   workflow_count=$((workflow_count + 1))
   name="$(basename "$workflow" .md)"
+  short_name="${name#maxime-}"
   body="$(read_core "$workflow")"
-  if [ "$name" = "maxime-review" ]; then
-    claude_tools='Read, Glob, Grep, Bash'
-    copilot_tools='[read, search]'
+  if [ "$name" = "maxime-init" ]; then
+    body_with_guard="$body"
   else
-    claude_tools='Read, Glob, Grep, Bash, Write, Edit'
-    copilot_tools='[read, search, execute, edit]'
+    body_with_guard="$bootstrap_guard
+
+$body"
   fi
-  write_file "$root/skills/$name/SKILL.md" <<EOF
+  claude_tools="${claude_tools_by_workflow[$name]}"
+  copilot_tools="${copilot_tools_by_workflow[$name]}"
+
+  write_file "$packaged_root/agents/$name.md" <<EOF
 ---
-name: $name
+name: maxi-claude-$short_name
 description: mA.xI.me workflow generated from the canonical source.
-allowed-tools: $claude_tools
+tools: $claude_tools
 ---
 
-$body
+$body_with_guard
 EOF
-  write_file "$root/.agents/skills/$name/SKILL.md" <<EOF
+  write_file "$packaged_root/.agents/skills/$name/SKILL.md" <<EOF
 ---
 name: $name
 description: mA.xI.me workflow generated from the canonical source.
 ---
 
-$body
+$body_with_guard
 EOF
-  write_file "$root/.copilot/prompts/$name.prompt.md" <<EOF
+  write_file "$packaged_root/.copilot/agents/$name.agent.md" <<EOF
 ---
-name: $name
+name: maxi-copilot-$short_name
 description: mA.xI.me workflow generated from the canonical source.
-agent: maxi-copilot
 tools: $copilot_tools
+user-invocable: true
+handoffs:
+  - label: Retour a maxime
+    agent: maxi-copilot
+    prompt: Integre ce retour et decide des actions suivantes.
+    send: false
 ---
 
-$body
+$body_with_guard
 EOF
 done < <(find "$workflow_root" -maxdepth 1 -type f -name 'maxime-*.md' -print | sort)
 [ "$workflow_count" -eq 7 ] || { echo "Expected seven canonical workflows; found $workflow_count." >&2; exit 1; }

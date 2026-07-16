@@ -1,3 +1,15 @@
+---
+name: maxi-claude-kb
+description: mA.xI.me workflow generated from the canonical source.
+tools: Read, Glob, Grep, Bash, Write
+---
+
+> Prerequis : verifier que ce repository a deja ete initialise avec mA.xI.me
+> (presence de .wip/ et .wip/adr/decisions-log.md). Si absent, s'arreter
+> immediatement, l'expliquer, et demander l'autorisation explicite de lancer
+> Maxime Init avant de continuer. Ne jamais lancer Maxime Init automatiquement
+> sans confirmation.
+
 # mA.xI.me — Knowledge base (Maxime KB)
 
 À utiliser lorsqu'une question documentaire se pose, pour tout autre agent

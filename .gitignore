@@ -30,3 +30,19 @@ history.jsonl
 Thumbs.db
 *.swp
 .vscode/
+
+# mA.xI.me -- Claude Code (outil installe, pas du code source)
+/CLAUDE.md
+/.claude/agents/maxime*.md
+/.claude/skills/maxime-*/
+/.claude/hooks/block-destructive-bash.sh
+/.claude/settings.json
+
+# mA.xI.me -- GitHub Copilot (outil installe, pas du code source)
+/.github/copilot-instructions.md
+/.github/agents/maxime*.agent.md
+/.github/prompts/maxime-*.prompt.md
+
+# mA.xI.me -- Codex (outil installe, pas du code source)
+/AGENTS.md
+/.agents/skills/maxime-*/

@@ -20,6 +20,7 @@ if (!(Test-Path (Join-Path $resolvedRoot 'core'))) {
 $root = $resolvedRoot
 $coreRoot = Join-Path $root 'core'
 $workflowRoot = Join-Path $coreRoot 'workflows'
+$packagedRoot = Join-Path $root 'install/Packaged'
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 function Write-Utf8File {
@@ -46,7 +47,7 @@ $socle
 
 ## Claude Code extension
 
-- mA.xI.me skills are available under `.claude/skills/`.
+- mA.xI.me workflows are available as dedicated sub-agents under `.claude/agents/`.
 - The `maxi-claude` orchestrator is available under `.claude/agents/`.
 - The hook configured in `.claude/settings.json`, when present, is Claude-specific protection and is not a portable guarantee.
 "@
@@ -81,22 +82,34 @@ $socle
 
 ## GitHub Copilot extension
 
-- The `maxi-copilot` agent is available under `.github/agents/`.
-- Workflows are available under `.github/prompts/`.
+- The `maxi-copilot` agent is available under `.github/agents/`, along with a dedicated sub-agent per workflow.
 - Capabilities and permissions depend on VS Code and the Copilot extension; do not claim a Claude hook or a host capability that is unavailable.
 "@
 
-Write-Utf8File (Join-Path $root 'CLAUDE.md') $claudeAdapter
-Write-Utf8File (Join-Path $root 'AGENTS.md') $codexAdapter
-Write-Utf8File (Join-Path $root '.codex/AGENTS.md') $codexAdapter
-Write-Utf8File (Join-Path $root '.copilot/copilot-instructions.md') $copilotAdapter
+Write-Utf8File (Join-Path $packagedRoot 'CLAUDE.md') $claudeAdapter
+Write-Utf8File (Join-Path $packagedRoot 'AGENTS.md') $codexAdapter
+Write-Utf8File (Join-Path $packagedRoot '.codex/AGENTS.md') $codexAdapter
+Write-Utf8File (Join-Path $packagedRoot '.copilot/copilot-instructions.md') $copilotAdapter
+
+# Bootstrap guard: prepended to every generated workflow agent/skill except
+# maxime-init itself, which is the one thing allowed to run before .wip/
+# exists. See decisions-log 2026-07-14 (workflows -> dedicated agents).
+$bootstrapGuard = @'
+> Prerequis : verifier que ce repository a deja ete initialise avec mA.xI.me
+> (presence de .wip/ et .wip/adr/decisions-log.md). Si absent, s'arreter
+> immediatement, l'expliquer, et demander l'autorisation explicite de lancer
+> Maxime Init avant de continuer. Ne jamais lancer Maxime Init automatiquement
+> sans confirmation.
+'@
 
 $orchestratorBody = @"
 # mA.xI.me - Orchestrator
 
-mA.xI.me is the single orchestrator for structured work. It applies the common core and orchestrates `maxime-start`, `maxime-plan`, `maxime-handoff`, `maxime-setup`, `maxime-retrofit`, `maxime-review`, and `maxime-kb`.
+mA.xI.me is the single orchestrator for structured work. It applies the common core and delegates to a dedicated sub-agent per workflow: `maxime-start`, `maxime-plan`, `maxime-handoff`, `maxime-init`, `maxime-retrofit`, `maxime-review`, and `maxime-kb`. Each sub-agent covers a small part of the workflow; talking to mA.xI.me directly always applies the method below, never a bare skill lookup.
 
-For significant work, start with `maxime-start`, create a specification with `maxime-plan`, wait for approval before writes, then conclude with verification and a handoff when needed.
+$bootstrapGuard
+
+For significant work, delegate to `maxime-start`, create a specification via `maxime-plan`, wait for approval before writes, then conclude with verification and a handoff when needed.
 
 The shared state is always `.wip/`. Host-specific extensions are additions and do not replace the common core.
 "@
@@ -108,37 +121,64 @@ tools: Read, Glob, Grep, Bash, Write, Edit
 ---
 
 $orchestratorBody
+
+Delegate to the matching sub-agent (via the Task tool) for each phase: `maxi-claude-start`, `maxi-claude-plan`, `maxi-claude-handoff`, `maxi-claude-init`, `maxi-claude-retrofit`, `maxi-claude-review`, `maxi-claude-kb`.
 "@
 $copilotAgent = @"
 ---
 name: maxi-copilot
 description: mA.xI.me orchestrator for structured work, planning, verification, and handoff.
 tools: [read, search, execute, edit, agent, vscode, web]
-agents: [maxi-copilot-reviewer, maxi-copilot-reviewer-shell]
+agents: [maxi-copilot-start, maxi-copilot-plan, maxi-copilot-handoff, maxi-copilot-init, maxi-copilot-retrofit, maxi-copilot-review, maxi-copilot-kb]
 user-invocable: true
 ---
 
 $orchestratorBody
 "@
-Write-Utf8File (Join-Path $root 'agents/maxime.md') $claudeAgent
-Write-Utf8File (Join-Path $root '.copilot/agents/maxime.agent.md') $copilotAgent
+Write-Utf8File (Join-Path $packagedRoot 'agents/maxime.md') $claudeAgent
+Write-Utf8File (Join-Path $packagedRoot '.copilot/agents/maxime.agent.md') $copilotAgent
+
+# Tool-scoping per workflow: derived from what each workflow's own text
+# actually does (see decisions-log 2026-07-14). Codex has no agent/tools
+# mechanism, so it gets no equivalent -- its skill carries the bootstrap
+# guard as text only, same as maxime-review already relied on text alone.
+$claudeToolsByWorkflow = @{
+    'maxime-start'    = 'Read, Glob, Grep, Bash'
+    'maxime-plan'     = 'Read, Glob, Grep, Bash, Write'
+    'maxime-handoff'  = 'Read, Glob, Grep, Bash, Write'
+    'maxime-init'     = 'Read, Glob, Grep, Bash'
+    'maxime-retrofit' = 'Read, Glob, Grep, Bash, Write'
+    'maxime-review'   = 'Read, Glob, Grep, Bash'
+    'maxime-kb'       = 'Read, Glob, Grep, Bash, Write'
+}
+$copilotToolsByWorkflow = @{
+    'maxime-start'    = '[read, search, execute]'
+    'maxime-plan'     = '[read, search, execute, edit]'
+    'maxime-handoff'  = '[read, search, execute, edit]'
+    'maxime-init'     = '[read, search, execute]'
+    'maxime-retrofit' = '[read, search, execute, edit]'
+    'maxime-review'   = '[read, search]'
+    'maxime-kb'       = '[read, search, execute, edit]'
+}
 
 $workflowFiles = Get-ChildItem -Path $workflowRoot -Filter 'maxime-*.md' -File | Sort-Object Name
 if ($workflowFiles.Count -ne 7) { throw "Expected seven canonical workflows; found $($workflowFiles.Count)." }
 foreach ($workflowFile in $workflowFiles) {
     $name = [System.IO.Path]::GetFileNameWithoutExtension($workflowFile.Name)
     $body = Read-CoreFile $workflowFile.FullName
-    $isReview = $name -eq 'maxime-review'
-    $claudeTools = if ($isReview) { 'Read, Glob, Grep, Bash' } else { 'Read, Glob, Grep, Bash, Write, Edit' }
-    $copilotTools = if ($isReview) { '[read, search]' } else { '[read, search, execute, edit]' }
-    $claudeSkill = @"
+    $isInit = $name -eq 'maxime-init'
+    $bodyWithGuard = if ($isInit) { $body } else { "$bootstrapGuard`n`n$body" }
+    $claudeTools = $claudeToolsByWorkflow[$name]
+    $copilotTools = $copilotToolsByWorkflow[$name]
+
+    $claudeAgentBody = @"
 ---
-name: $name
+name: maxi-claude-$($name -replace '^maxime-', '')
 description: mA.xI.me workflow generated from the canonical source.
-allowed-tools: $claudeTools
+tools: $claudeTools
 ---
 
-$body
+$bodyWithGuard
 "@
     $codexSkill = @"
 ---
@@ -146,21 +186,26 @@ name: $name
 description: mA.xI.me workflow generated from the canonical source.
 ---
 
-$body
+$bodyWithGuard
 "@
-    $prompt = @"
+    $copilotAgentBody = @"
 ---
-name: $name
+name: maxi-copilot-$($name -replace '^maxime-', '')
 description: mA.xI.me workflow generated from the canonical source.
-agent: maxi-copilot
 tools: $copilotTools
+user-invocable: true
+handoffs:
+  - label: Retour a maxime
+    agent: maxi-copilot
+    prompt: Integre ce retour et decide des actions suivantes.
+    send: false
 ---
 
-$body
+$bodyWithGuard
 "@
-    Write-Utf8File (Join-Path $root "skills/$name/SKILL.md") $claudeSkill
-    Write-Utf8File (Join-Path $root ".agents/skills/$name/SKILL.md") $codexSkill
-    Write-Utf8File (Join-Path $root ".copilot/prompts/$name.prompt.md") $prompt
+    Write-Utf8File (Join-Path $packagedRoot "agents/$name.md") $claudeAgentBody
+    Write-Utf8File (Join-Path $packagedRoot ".agents/skills/$name/SKILL.md") $codexSkill
+    Write-Utf8File (Join-Path $packagedRoot ".copilot/agents/$name.agent.md") $copilotAgentBody
 }
 
 Write-Host 'mA.xI.me adapters generated from core.' -ForegroundColor Green
