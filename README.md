@@ -9,13 +9,19 @@ mA.xI.me projette les mêmes règles et workflows dans chaque outil, selon la bo
 ## Contenu
 
 - `core/` — source canonique du socle et des 7 workflows
-- `CLAUDE.md`, `.copilot/` et `.codex/` — adaptateurs générés pour les trois outils
-- `agents/maxime.md` et `.copilot/agents/maxime.agent.md` — orchestrateur mA.xI.me selon les capacités de l'hôte
-- `skills/maxime-*/`, `.agents/skills/maxime-*/` et `.copilot/prompts/` — projections générées des workflows
-- `.claude/hooks/` — extension de protection propre à Claude Code, non présentée comme une garantie multi-outils
+- `install/Packaged/` — tout ce que l'installateur projette dans un repo cible :
+  `CLAUDE.md`, `.copilot/` et `.codex/` (adaptateurs générés pour les trois outils),
+  `agents/maxime.md` et `.copilot/agents/maxime.agent.md` (orchestrateur), plus un
+  agent dédié par workflow (`agents/maxime-*.md` côté Claude,
+  `.copilot/agents/maxime-*.agent.md` côté Copilot, `.agents/skills/maxime-*/`
+  côté Codex qui n'a pas de notion d'agent), `.claude/settings.json` et
+  `.claude/hooks/` (extension de protection propre à Claude Code, non présentée
+  comme une garantie multi-outils)
 - `docs/` — architecture et spécifications de référence
-- `install/` — installation repo-only pour Claude, Copilot et Codex
-- `tools/generate-adapters.*` et `tools/check-adapter-sync.*` — génération et contrôle des projections
+- `install/` — installateur/désinstallateur repo-only pour Claude, Copilot et Codex,
+  décomposé en petits scripts spécialisés sous `install/lib/` (un par hôte, plus
+  l'initialisation de l'état local), chacun callable seul
+- `tools/generate-adapters.*` et `tools/check-adapter-sync.*` — génération et contrôle des projections sous `install/Packaged/`
 
 ## Installation
 
@@ -48,8 +54,8 @@ Il ne modifie jamais les répertoires globaux de Claude Code, Copilot ou Codex.
 
 | Cible | Installe dans le repo cible |
 | --- | --- |
-| `claude` | `CLAUDE.md`, `.claude/settings.json`, hooks, agents et skills mA.xI.me |
-| `copilot` | `.github/copilot-instructions.md`, agents et prompts |
+| `claude` | `CLAUDE.md`, `.claude/settings.json`, hooks, orchestrateur et un agent dédié par workflow |
+| `copilot` | `.github/copilot-instructions.md`, orchestrateur et un agent dédié par workflow |
 | `codex` | `AGENTS.md` et `.agents/skills/maxime*` |
 | `both` | Claude Code + Copilot |
 | `all` (défaut) | Claude Code + Copilot + Codex |
@@ -70,10 +76,14 @@ cible. Ces données ne sont donc pas synchronisées.
 
 **Par défaut, l'installation entière reste locale à ta machine.** Les fichiers
 projetés (`CLAUDE.md`, `.claude/`, `.github/copilot-instructions.md`,
-`.github/agents/maxime*`, `.github/prompts/maxime-*`, `AGENTS.md`,
+`.github/agents/maxime*`, `AGENTS.md`,
 `.agents/skills/maxime-*`) sont ajoutés à `.git/info/exclude` (local, jamais
-commité), exactement comme `.wip/`/`.bkp/`. Rien n'est commitable par erreur,
-même avec `git add -A`.
+commité), exactement comme `.wip/`/`.bkp/`. Ils sont aussi ajoutés (création ou
+mise à jour) au `.gitignore` du repo cible : contrairement à `.wip/`/`.bkp/`
+(exclusion strictement locale, jamais de `.gitignore`), mA.xI.me est un outil —
+la même protection doit tenir même depuis un autre clone ou pour un autre
+contributeur qui n'a pas lancé l'installateur lui-même. Rien n'est commitable
+par erreur, même avec `git add -A`.
 
 Utilise `-Shared` (PowerShell) / `--shared` (Bash) pour revenir au
 comportement partagé : les fichiers deviennent commitables, pensés pour être
@@ -181,12 +191,16 @@ Note modele:
 - **Socle mA.xI.me** : règles et workflows portables issus de `core/`, projetés dans
   `CLAUDE.md` pour Claude Code, `.github/copilot-instructions.md` pour Copilot et
   `AGENTS.md` pour Codex lors de l'installation.
-- **Orchestrateur mA.xI.me** : point d'entrée du travail structuré. Les identités
-  techniques sont `maxi-claude` (Claude), `maxi-copilot` (Copilot) et
-  `maxi-codex` (Codex, logique workflow sans picker d'agent). Les workflows restent
-  projetés dans `.agents/skills/` pour Codex.
-- **Extensions d'hôte** : les hooks Claude ou les sous-agents disponibles dans Copilot
-  complètent le socle, sans être faussement présentés comme universels.
+- **Orchestrateur mA.xI.me** : point d'entrée du travail structuré, toujours actif
+  quand on lui parle directement. Les identités techniques sont `maxi-claude`
+  (Claude), `maxi-copilot` (Copilot) et `maxi-codex` (Codex, logique workflow
+  sans picker d'agent).
+- **Agents de workflow** : côté Claude et Copilot, chacun des 7 workflows est un
+  agent dédié (pas un skill/prompt) avec le tool-scoping que son propre texte
+  justifie ; l'orchestrateur y délègue pour chaque phase. Côté Codex, sans
+  notion d'agent, les workflows restent projetés dans `.agents/skills/`.
+- **Extensions d'hôte** : les hooks Claude complètent le socle, sans être
+  faussement présentés comme universels.
 
 Un VSIX est prévu en phase 2 seulement : il automatisera l'installation dans le
 workspace et l'expérience Copilot après validation de ce fonctionnement manuel.

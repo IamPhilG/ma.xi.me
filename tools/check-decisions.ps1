@@ -42,7 +42,6 @@ try {
     Test-Decision 'tools/ ne contient que les scripts de maintenance du repo source' {
         $expected = @(
             'check-adapter-sync.ps1', 'check-adapter-sync.sh',
-            'check-codex-skills-sync.ps1', 'check-codex-skills-sync.sh',
             'check-decisions.ps1', 'check-decisions.sh',
             'cleanup-global.ps1', 'cleanup-global.sh',
             'generate-adapters.ps1', 'generate-adapters.sh'
@@ -94,7 +93,7 @@ try {
     # portable/generated source (excludes .wip/ local narrative and this checker's
     # own source, which legitimately mentions the old name/path as literal text).
     Test-Decision 'aucun residu .wip/maxime ou identifiant agent "maxime" nu dans le source portable' {
-        $scanDirs = @('core', 'agents', 'skills', '.agents', '.copilot', '.codex', 'install')
+        $scanDirs = @('core', 'install')
         $scanFiles = @('CLAUDE.md', 'AGENTS.md', 'README.md')
         $targets = @()
         foreach ($dir in $scanDirs) {
@@ -122,13 +121,13 @@ try {
     Test-Decision 'aucun nom d''outil Copilot obsolete (read_file/grep_search/file_search/run_in_terminal/apply_patch/create_file/runSubagent/grep)' {
         $legacyNames = 'read_file', 'grep_search', 'file_search', 'run_in_terminal', 'apply_patch', 'create_file', 'runSubagent'
         $pattern = ($legacyNames | ForEach-Object { [regex]::Escape($_) }) -join '|'
-        $targets = Get-ChildItem -Path (Join-Path $repositoryRoot '.copilot') -Recurse -File -Include '*.md' -ErrorAction SilentlyContinue
+        $targets = Get-ChildItem -Path (Join-Path $repositoryRoot 'install\Packaged\.copilot') -Recurse -File -Include '*.md' -ErrorAction SilentlyContinue
         $targets += Get-Item (Join-Path $repositoryRoot 'tools\generate-adapters.ps1'), (Join-Path $repositoryRoot 'tools\generate-adapters.sh')
         $hits = $targets | Select-String -Pattern $pattern -ErrorAction SilentlyContinue
         if ($hits) {
             throw "Noms d'outils Copilot obsoletes trouves: $($hits.Path -join ', ')"
         }
-        $copilotTargets = Get-ChildItem -Path (Join-Path $repositoryRoot '.copilot') -Recurse -File -Include '*.md' -ErrorAction SilentlyContinue
+        $copilotTargets = Get-ChildItem -Path (Join-Path $repositoryRoot 'install\Packaged\.copilot') -Recurse -File -Include '*.md' -ErrorAction SilentlyContinue
         $toolsLineHits = $copilotTargets | Select-String -Pattern '^tools:.*\bgrep\b' -ErrorAction SilentlyContinue
         if ($toolsLineHits) {
             throw "'grep' n'est pas un outil Copilot valide (utiliser 'search'): $($toolsLineHits.Path -join ', ')"
@@ -142,7 +141,7 @@ try {
     # license, metadata, name, user-invocable). Claude-facing skills/*/SKILL.md keeps
     # it; the two are generated as distinct bodies, not copies of each other.
     Test-Decision 'aucun allowed-tools dans .agents/skills/*/SKILL.md (Codex)' {
-        $hits = Get-ChildItem -Path (Join-Path $repositoryRoot '.agents\skills') -Recurse -File -Filter 'SKILL.md' -ErrorAction SilentlyContinue |
+        $hits = Get-ChildItem -Path (Join-Path $repositoryRoot 'install\Packaged\.agents\skills') -Recurse -File -Filter 'SKILL.md' -ErrorAction SilentlyContinue |
             Select-String -Pattern '^allowed-tools:' -ErrorAction SilentlyContinue
         if ($hits) {
             throw "allowed-tools trouve dans une SKILL.md Codex: $($hits.Path -join ', ')"
@@ -212,7 +211,7 @@ try {
         }
         & (Join-Path $repositoryRoot 'install\install.ps1') -Target claude -WorkspaceRoot $fixture | Out-Null
 
-        foreach ($dir in @('memory', 'specs', 'adr', 'results', 'tools')) {
+        foreach ($dir in @('memory', 'specs', 'adr', 'results', 'kb', 'tools')) {
             if (!(Test-Path (Join-Path $fixture ".wip\$dir"))) {
                 throw "Repertoire .wip/$dir manquant apres installation."
             }
@@ -226,8 +225,12 @@ try {
         if (($excludeContent -notcontains '/.wip/') -or ($excludeContent -notcontains '/.bkp/')) {
             throw ".git/info/exclude ne contient pas /.wip/ et /.bkp/ apres installation (exclusion locale attendue, pas de .gitignore)."
         }
-        if (Test-Path (Join-Path $fixture '.gitignore')) {
-            throw "Un .gitignore a ete cree pour .wip/.bkp -- l'exclusion doit rester locale via .git/info/exclude uniquement."
+        $gitignorePath = Join-Path $fixture '.gitignore'
+        if (Test-Path $gitignorePath) {
+            $gitignoreContent = Get-Content -Path $gitignorePath
+            if (($gitignoreContent -contains '/.wip/') -or ($gitignoreContent -contains '/.bkp/')) {
+                throw "/.wip/ ou /.bkp/ trouve dans .gitignore -- cette exclusion doit rester locale via .git/info/exclude uniquement."
+            }
         }
 
         $installedCleanup = Join-Path $fixture '.wip\tools\cleanup-wip.ps1'
@@ -250,18 +253,27 @@ try {
     }
 
     # Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
-    # .git/info/exclude -- the whole install stays local, nothing commitable by
-    # accident. -Shared restores the old commitable behavior. uninstall.ps1 removes
-    # the same entries it added.
-    Test-Decision 'installation locale par defaut (info/exclude), -Shared rend commitable, uninstall nettoie' {
+    # .git/info/exclude AND to .gitignore -- the whole install stays local via exclude,
+    # and .gitignore documents/enforces the same patterns so the tool is never
+    # accidentally committed even from a different clone. -Shared restores the old
+    # commitable behavior (neither exclude nor .gitignore touched). uninstall.ps1
+    # removes the same entries it added, from both files.
+    Test-Decision 'installation locale par defaut (info/exclude + .gitignore), -Shared rend commitable, uninstall nettoie' {
         $fixtureDefault = Join-Path $tempRoot 'fixture-local'
         New-Item -ItemType Directory -Path $fixtureDefault | Out-Null
         Push-Location $fixtureDefault
         try { git init -q } finally { Pop-Location }
         & (Join-Path $repositoryRoot 'install\install.ps1') -Target claude -WorkspaceRoot $fixtureDefault | Out-Null
-        $statusDefault = & git -C $fixtureDefault status --short
-        if ($statusDefault) {
-            throw "installation par defaut : git status devrait etre vide (tout exclu), trouve: $($statusDefault -join '; ')"
+        $statusDefault = @(& git -C $fixtureDefault status --short)
+        if (@($statusDefault | Where-Object { $_ -notmatch '\.gitignore$' }).Count -gt 0) {
+            throw "installation par defaut : seul .gitignore devrait apparaitre en non-suivi (le reste doit etre exclu), trouve: $($statusDefault -join '; ')"
+        }
+        if (@($statusDefault | Where-Object { $_ -match '\.gitignore$' }).Count -eq 0) {
+            throw "installation par defaut : .gitignore devrait avoir ete cree et apparaitre en non-suivi."
+        }
+        $gitignoreDefault = Get-Content (Join-Path $fixtureDefault '.gitignore')
+        if ($gitignoreDefault -notcontains '/CLAUDE.md') {
+            throw "installation par defaut : /CLAUDE.md absent de .gitignore."
         }
 
         & (Join-Path $repositoryRoot 'install\uninstall.ps1') -Target claude -WorkspaceRoot $fixtureDefault | Out-Null
@@ -271,6 +283,10 @@ try {
         }
         if (($excludeDefault -notcontains '/.wip/') -or ($excludeDefault -notcontains '/.bkp/')) {
             throw "uninstall a retire /.wip/ ou /.bkp/ de .git/info/exclude -- ne doit retirer que les entrees qu'il a ajoutees."
+        }
+        $gitignoreAfterUninstall = Get-Content (Join-Path $fixtureDefault '.gitignore')
+        if ($gitignoreAfterUninstall -contains '/CLAUDE.md') {
+            throw "uninstall n'a pas retire /CLAUDE.md de .gitignore."
         }
 
         $fixtureShared = Join-Path $tempRoot 'fixture-shared'
@@ -282,6 +298,78 @@ try {
         $claudeMdUntracked = $statusShared | Where-Object { $_ -match 'CLAUDE\.md$' }
         if (-not $claudeMdUntracked) {
             throw "-Shared : CLAUDE.md devrait apparaitre en non-suivi (commitable) dans git status."
+        }
+        if (Test-Path (Join-Path $fixtureShared '.gitignore')) {
+            throw "-Shared : aucun .gitignore ne devrait etre cree."
+        }
+        $true
+    }
+
+    # Decision: install/lib/install-claude.ps1 (and the other per-host scripts) must be
+    # callable standalone, without going through install.ps1 -Target. This is what lets
+    # an agent (Maxime Init) compose the exact pieces it needs instead of negotiating a
+    # -Target flag.
+    Test-Decision 'install/lib/install-claude.ps1 fonctionne seul, sans passer par install.ps1' {
+        $fixture = Join-Path $tempRoot 'fixture-standalone-lib'
+        New-Item -ItemType Directory -Path $fixture | Out-Null
+        Push-Location $fixture
+        try { git init -q } finally { Pop-Location }
+        & (Join-Path $repositoryRoot 'install\lib\install-claude.ps1') -RepoRoot $fixture | Out-Null
+        if (!(Test-Path (Join-Path $fixture 'CLAUDE.md'))) {
+            throw "install-claude.ps1 execute seul n'a pas cree CLAUDE.md."
+        }
+        if (!(Test-Path (Join-Path $fixture '.claude\agents\maxime.md'))) {
+            throw "install-claude.ps1 execute seul n'a pas cree .claude/agents/maxime.md."
+        }
+        $true
+    }
+
+    # Decision: each workflow is generated as a dedicated agent (Claude + Copilot) with
+    # the tool-scoping its own text justifies, not the orchestrator's full tool set.
+    # Codex has no agent/tools mechanism, so it is excluded here (see the allowed-tools
+    # decision above). maxime-init is the only workflow allowed to skip the bootstrap
+    # guard, since it is what creates .wip/ in the first place.
+    Test-Decision 'chaque agent de workflow genere a le tool-scoping et la garde bootstrap attendus' {
+        $writeCapableWorkflows = @('maxime-plan', 'maxime-handoff', 'maxime-retrofit', 'maxime-kb')
+        $readOnlyWorkflows = @('maxime-start', 'maxime-init', 'maxime-review')
+        $claudeAgentsDir = Join-Path $repositoryRoot 'install\Packaged\agents'
+        $copilotAgentsDir = Join-Path $repositoryRoot 'install\Packaged\.copilot\agents'
+
+        foreach ($name in ($writeCapableWorkflows + $readOnlyWorkflows)) {
+            $claudeAgentPath = Join-Path $claudeAgentsDir "$name.md"
+            if (!(Test-Path $claudeAgentPath)) { throw "Agent Claude manquant: $claudeAgentPath" }
+            $claudeContent = Get-Content -Path $claudeAgentPath -Raw
+            $toolsLine = ($claudeContent -split "`n" | Where-Object { $_ -match '^tools:' }) -join ''
+            $shouldHaveWrite = $name -in $writeCapableWorkflows
+            $hasWrite = $toolsLine -match '\bWrite\b'
+            if ($shouldHaveWrite -and -not $hasWrite) {
+                throw "$name (Claude) devrait avoir Write dans tools: mais ne l'a pas ($toolsLine)."
+            }
+            if (-not $shouldHaveWrite -and $hasWrite) {
+                throw "$name (Claude) ne devrait pas avoir Write dans tools: ($toolsLine)."
+            }
+
+            $copilotAgentPath = Join-Path $copilotAgentsDir "$name.agent.md"
+            if (!(Test-Path $copilotAgentPath)) { throw "Agent Copilot manquant: $copilotAgentPath" }
+            $copilotContent = Get-Content -Path $copilotAgentPath -Raw
+            $copilotToolsLine = ($copilotContent -split "`n" | Where-Object { $_ -match '^tools:' }) -join ''
+            $hasEdit = $copilotToolsLine -match '\bedit\b'
+            if ($shouldHaveWrite -and -not $hasEdit) {
+                throw "$name (Copilot) devrait avoir edit dans tools: mais ne l'a pas ($copilotToolsLine)."
+            }
+            if (-not $shouldHaveWrite -and $hasEdit) {
+                throw "$name (Copilot) ne devrait pas avoir edit dans tools: ($copilotToolsLine)."
+            }
+
+            $expectGuard = $name -ne 'maxime-init'
+            $hasGuardClaude = $claudeContent -match 'demander l''autorisation explicite'
+            $hasGuardCopilot = $copilotContent -match 'demander l''autorisation explicite'
+            if ($expectGuard -and (-not $hasGuardClaude -or -not $hasGuardCopilot)) {
+                throw "$name : garde bootstrap (redirection vers Maxime Init) manquante."
+            }
+            if (-not $expectGuard -and ($hasGuardClaude -or $hasGuardCopilot)) {
+                throw "$name : ne devrait pas contenir la garde bootstrap (c'est Maxime Init lui-meme)."
+            }
         }
         $true
     }
