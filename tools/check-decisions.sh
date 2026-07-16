@@ -337,6 +337,30 @@ check_kb_network_policy_and_version() {
   pass "$name"
 }
 
+# Decision (issue #29): maxime-kb documents not just the network-write guard
+# but the actual two-repo Git mechanic needed to push a fiche to
+# knowledge-base/ -- checkout main before writing (submodules default to
+# detached HEAD) and a second commit in the consumer repo to bump the
+# submodule pointer, proposed in the same pass, not a step to forget.
+check_kb_submodule_push_mechanics() {
+  local name="maxime-kb documente la mecanique Git en 2 temps pour pousser vers knowledge-base (issue #29)"
+  local maxime_kb_agent="$repository_root/install/Packaged/agents/maxime-kb.md"
+  if ! grep -q 'checkout main' "$maxime_kb_agent"; then
+    fail "$name" "L'agent maxime-kb genere ne mentionne pas de sortir le submodule du detached HEAD (git checkout main)."
+    return
+  fi
+  if ! grep -qi 'bump' "$maxime_kb_agent"; then
+    fail "$name" "L'agent maxime-kb genere ne mentionne pas le second commit de bump du pointeur de submodule."
+    return
+  fi
+  if ! grep -q 'submodule (new commits)' "$maxime_kb_agent"; then
+    fail "$name" "L'agent maxime-kb genere ne mentionne pas la verification de derive post-push (git status)."
+    return
+  fi
+
+  pass "$name"
+}
+
 # Decision: cleanup-wip only purges .wip/kb/archived/ by age (never
 # .wip/kb/active/), and must not fail when .wip/kb/archived/ does not exist
 # yet (same class of regression as the 2026-07-11 set -e/tests bug).
@@ -643,6 +667,7 @@ check_cross_generator_sync
 check_fresh_install
 check_kb_json_format
 check_kb_network_policy_and_version
+check_kb_submodule_push_mechanics
 check_kb_cleanup_without_archived
 check_preserve_project_content
 check_local_by_default
