@@ -90,6 +90,7 @@ Tous les outils lisent et écrivent le même état local :
     cleanup-wip.ps1
     cleanup-wip.sh
     kb-network-policy.json
+  tmp/
 ```
 
 L'installateur crée ces dossiers et ajoute `/.wip/` ainsi que `/.bkp/` au fichier
@@ -105,7 +106,12 @@ hors de `.wip/`. Depuis le 2026-07-16, ils acceptent aussi
 `kb/archived/` est purgé par âge, jamais `kb/active/` (une fiche active n'est
 jamais supprimée automatiquement, seulement signalée pour revalidation via
 `ttl_days`). Les entrées `index.json` correspondant aux fichiers supprimés sont
-retirées au passage.
+retirées au passage. Depuis le 2026-07-16 (issue #34), `-RetainTmpDays`/
+`--retain-tmp-days` (1 par défaut) purge de la même façon `.wip/tmp/`, seul
+emplacement sanctionné pour un fichier éphémère : aucune écriture n'est
+censée avoir lieu hors du repository cible, y compris pour du travail
+temporaire (voir [Garde-fous d'écriture](#garde-fous-décriture-hors-repo-hooks-claude)
+plus bas).
 
 ### Base de connaissance (`.wip/kb/` et `knowledge-base/`)
 
@@ -158,6 +164,8 @@ Les cibles disponibles sont `claude`, `copilot`, `codex`, `both` et `all`.
 Par défaut, les fichiers projetés par cible sont ajoutés à `.git/info/exclude`
 du repo cible (motifs précis : `/CLAUDE.md`, `/.claude/agents/maxime*.md`,
 `/.claude/skills/maxime-*/`, `/.claude/hooks/block-destructive-bash.sh`,
+`/.claude/hooks/block-destructive-powershell.sh`,
+`/.claude/hooks/block-outside-repo-write.sh`, `/.claude/hooks/lib-path-guard.sh`,
 `/.claude/settings.json`, `/.claude/MAXIME_VERSION`,
 `/.github/copilot-instructions.md`, `/.github/agents/maxime*.agent.md`,
 `/.github/prompts/maxime-*.prompt.md`, `/.github/MAXIME_VERSION`,
@@ -205,6 +213,34 @@ contenu project-specific disparaissait silencieusement du fichier actif :
   `remove_maxime_managed_block` : si un bloc géré existe, seul le bloc est
   retiré, jamais le fichier entier — sinon le contenu projet fusionné serait
   perdu à la désinstallation.
+
+### Garde-fous d'écriture hors repo (hooks Claude)
+
+`toute écriture hors du repository cible` (ci-dessus) est refusée par
+l'installateur lui-même, mais c'était jusqu'au 2026-07-16 une consigne de
+conduite du socle sans garde technique en dehors de l'installation : rien
+n'empêchait un outil/terminal d'écrire un fichier temporaire hors du repo en
+cours de session (constaté en usage réel, issue #34). `.wip/tmp/` est
+désormais le seul emplacement sanctionné pour un fichier éphémère — purgé par
+`cleanup-wip` (`-RetainTmpDays`/`--retain-tmp-days`, 1 jour par défaut, voir
+[État local partagé](#état-local-partagé) plus haut) — et trois hooks
+`PreToolUse` (extension propre à Claude Code, non présentée comme une
+garantie multi-outils) appliquent un contrôle de containment de chemin
+partagé (`lib-path-guard.sh` : résolution du repo racine via
+`git rev-parse --show-toplevel`, normalisation casse/slash) :
+
+- **`block-outside-repo-write.sh`** (matcher `Write|Edit|NotebookEdit`) : lit
+  `.tool_input.file_path` directement — le chemin exact de l'écriture, pas un
+  texte de commande à deviner.
+- **`block-destructive-bash.sh`** : ne bloque le containment que si la
+  commande contient un verbe d'écriture (`>`, `>>`, `tee`, `cp`, `mv`,
+  `install`) — remplace l'ancien blocage inconditionnel de toute redirection
+  ou mention de cmdlet PowerShell, source des faux positifs de la note
+  annexe de l'issue #27 (ex. `cat file 2>&1`).
+- **`block-destructive-powershell.sh`** (matcher `PowerShell`) : même
+  logique de containment pour `Set-Content`/`Add-Content`/`Out-File`/
+  `New-Item`/`Copy-Item`/`Move-Item`, avec les mêmes `hard_deny`/`soft_ask`
+  Git que la variante Bash.
 
 ### Version
 
@@ -262,7 +298,11 @@ ne sont jamais supprimés automatiquement, seulement signalés.
 ## Limites assumées
 
 - Les instructions sont du contexte, pas un verrou technique universel.
-- Le hook Claude n'est pas disponible dans les autres hôtes.
+- Les hooks Claude ([Garde-fous d'écriture hors repo](#garde-fous-décriture-hors-repo-hooks-claude))
+  ne sont pas disponibles dans les autres hôtes ; ils reposent aussi sur une
+  correspondance regex sur le texte brut de la commande, pas une analyse
+  sémantique — contournable via encodage/alias, compromis assumé documenté en
+  tête de chaque hook.
 - Un VSIX peut améliorer l'intégration Copilot, mais ne peut pas imposer son interface
   aux extensions Claude Code ou Codex.
 - La découverte réelle des adaptateurs reste à valider manuellement dans les versions

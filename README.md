@@ -32,9 +32,10 @@ Il ne modifie jamais les répertoires globaux de Claude Code, Copilot ou Codex.
 
 ### Prérequis
 
-- **Git Bash** et **jq** sont requis pour le hook de garde-fou
-  (`.claude/hooks/block-destructive-bash.sh`). Sur Windows, Git Bash est
-  fourni avec Git for Windows ; installer `jq` via `winget install jqlang.jq`.
+- **Git Bash** et **jq** sont requis pour les hooks de garde-fou
+  (`.claude/hooks/block-destructive-bash.sh`, `block-destructive-powershell.sh`,
+  `block-outside-repo-write.sh`). Sur Windows, Git Bash est fourni avec Git for
+  Windows ; installer `jq` via `winget install jqlang.jq`.
   (macOS : `brew install jq` · Linux : `apt install jq`).
 
 - **Vérifie que `jq` est bien trouvé** après installation :
@@ -73,6 +74,9 @@ L'installateur initialise également l'état partagé local `.wip/` :
 - `.wip/tools/` (sorties d'outils, plus `cleanup-wip.ps1`/`.sh` — routine de nettoyage
   de `.wip/`, `dry-run` par défaut — et `kb-network-policy.json`, garde-fou réseau
   pour les écritures vers une KB partagée)
+- `.wip/tmp/` (seul emplacement sanctionné pour un fichier éphémère — aucune
+  écriture n'est censée avoir lieu hors du repo cible, y compris pour du
+  travail temporaire ; purgé après 1 jour par défaut par `cleanup-wip`)
 
 Il ajoute aussi `/.wip/` et `/.bkp/` au fichier Git local `info/exclude` du repo
 cible. Ces données ne sont donc pas synchronisées.
