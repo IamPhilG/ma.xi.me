@@ -21,7 +21,9 @@ mA.xI.me projette les mêmes règles et workflows dans chaque outil, selon la bo
 - `install/` — installateur/désinstallateur repo-only pour Claude, Copilot et Codex,
   décomposé en petits scripts spécialisés sous `install/lib/` (un par hôte, plus
   l'initialisation de l'état local), chacun callable seul
-- `tools/generate-adapters.*` et `tools/check-adapter-sync.*` — génération et contrôle des projections sous `install/Packaged/`
+- `tools/generate-adapters.*` et `tools/check-adapter-sync.*` — génération et contrôle des
+  projections sous `install/Packaged/` ; `tools/check-decisions.*` exécute un test par
+  décision structurante de `.wip/adr/decisions-log.md`
 
 ## Installation
 
@@ -66,11 +68,33 @@ L'installateur initialise également l'état partagé local `.wip/` :
 - `.wip/specs/` (spécifications)
 - `.wip/adr/` (décisions)
 - `.wip/results/` (impasses et résultats)
+- `.wip/kb/` (base de connaissance locale : `index.json` + `active/`/`archived/`,
+  voir [Base de connaissance](#base-de-connaissance-kb) plus bas)
 - `.wip/tools/` (sorties d'outils, plus `cleanup-wip.ps1`/`.sh` — routine de nettoyage
-  de `.wip/`, `dry-run` par défaut)
+  de `.wip/`, `dry-run` par défaut — et `kb-network-policy.json`, garde-fou réseau
+  pour les écritures vers une KB partagée)
 
 Il ajoute aussi `/.wip/` et `/.bkp/` au fichier Git local `info/exclude` du repo
 cible. Ces données ne sont donc pas synchronisées.
+
+### Contenu projet déjà présent
+
+Si le repo cible a déjà son propre `CLAUDE.md`, `copilot-instructions.md` ou
+`AGENTS.md` avant l'installation, ce contenu n'est jamais perdu : sauvegardé
+dans `.bkp/` comme tout le reste, mais aussi **préservé activement**, avec un
+mécanisme différent par hôte (aucun mécanisme natif fiable n'étant commun aux
+trois) :
+
+- **Claude** : déplacé une fois vers `.claude/rules/project-conventions.md`,
+  chargé automatiquement par Claude Code, jamais retouché ensuite.
+- **Copilot** : déplacé une fois vers
+  `.github/instructions/project-conventions.instructions.md`
+  (`applyTo: "**"`), fusionné automatiquement par Copilot.
+- **Codex** : fusionné directement dans `AGENTS.md`, à l'intérieur d'un bloc
+  délimité (`<!-- BEGIN/END mA.xI.me generated -->`) — pas de mécanisme natif
+  de fusion confirmé pour cet hôte. Les réinstallations suivantes ne
+  remplacent que ce bloc ; `uninstall` ne retire que le bloc, jamais le
+  fichier entier si du contenu projet y est mêlé.
 
 ### Local par défaut, partagé sur demande
 
@@ -185,6 +209,48 @@ Note modele:
 - Les fichiers n'imposent pas un modele unique.
 - Recommandation: laisser le modele actif de l'utilisateur, et n'imposer un modele
   que sur un agent/prompt precis si une tache le justifie.
+
+### Version
+
+Chaque installation copie un marqueur de version dans le repo cible
+(`.claude/MAXIME_VERSION`, `.github/MAXIME_VERSION` ou `.agents/MAXIME_VERSION`
+selon l'hôte) : le SHA du commit source de ma.xi.me, **calculé en direct**
+(`git rev-parse HEAD`) au moment de l'installation, jamais copié d'un fichier
+committé — un fichier généré ne peut pas connaître le commit qui le porte, donc
+un SHA pré-calculé serait toujours en retard d'au moins un commit. `maxime-start`
+compare ce marqueur au SHA distant (si le réseau le permet) pour détecter un
+écart et proposer une mise à jour via `maxime-init`.
+
+Premier tag : `v0.1.0`. Pas de branche `release` : plus de process qu'un calcul
+en direct pour un outil à un seul mainteneur, sans engagement de support
+d'anciennes versions.
+
+### Base de connaissance (KB)
+
+`maxime-kb` s'appuie sur deux sources, jamais confondues :
+
+- **`.wip/kb/`** — capture locale à ce repo, au format **JSON** (pas Markdown) :
+  `index.json` (léger, sans le corps des fiches, seul fichier chargé
+  systématiquement) + `active/<thème>/<id>.json` + `archived/`. Schéma d'une
+  fiche : `id`, `type`, `theme`, `tags`, `scope`, `status`
+  (`draft`/`active`/`suspect`/`obsolete`/`archived`), `confidence`, `audience`,
+  `source`, `validated`, `created`, `ttl_days`, `links`, `content`. `ttl_days`
+  suit la nature du sujet (60-90 jours pour les plateformes qui évoluent vite,
+  270-365 pour l'infrastructure stable) — au-delà, `maxime-kb` propose de
+  revalider, marquer suspecte, ou ignorer pour la session, jamais un choix
+  automatique. `cleanup-wip` ne purge par âge que `kb/archived/`, jamais
+  `kb/active/`.
+- **`knowledge-base/`** — submodule Git partagé optionnel, encore au format
+  Markdown+frontmatter (migration JSON prévue dans une itération séparée).
+  Avant toute écriture vers ce submodule, `maxime-kb` lit
+  `.wip/tools/kb-network-policy.json` (`network_read`, `network_write` —
+  `network_write: false` par défaut, jamais présumé autorisé) ; `maxime-init`
+  pose la question explicitement. Pousser une fiche demande deux commits
+  distincts, dans deux repos : un commit dans `knowledge-base/` (après en être
+  sorti du detached HEAD par défaut), puis un second commit dans le repo
+  consommateur pour bumper le pointeur de submodule — sans ce second commit,
+  le contenu est poussé mais le repo consommateur reste épinglé sur l'ancien
+  commit, silencieusement.
 
 ## Un socle, un orchestrateur, trois adaptateurs
 
