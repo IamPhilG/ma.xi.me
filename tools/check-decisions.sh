@@ -218,6 +218,53 @@ check_fresh_install() {
   pass "$name"
 }
 
+# Decision: KB fiches under .wip/kb/ are JSON (id/type/theme/tags/scope/status/
+# confidence/audience/source/validated/created/ttl_days/links/content), not
+# Markdown+frontmatter. A fresh install creates .wip/kb/index.json (empty array),
+# .wip/kb/active/ and .wip/kb/archived/ -- never .wip/kb/INDEX.md. The generated
+# maxime-kb agent documents the JSON schema, not the old ".new" filename convention.
+check_kb_json_format() {
+  local name="KB au format JSON (index.json + active/archived), pas Markdown+INDEX.md"
+  local fixture="$temp_root/fixture-kb-json"
+  mkdir -p "$fixture"
+  (cd "$fixture" && git init -q)
+
+  if ! bash "$repository_root/install/install.sh" --target claude --workspace-root "$fixture" >/dev/null; then
+    fail "$name" "Installation a echoue."
+    return
+  fi
+
+  local index_path="$fixture/.wip/kb/index.json"
+  if [ ! -f "$index_path" ]; then
+    fail "$name" ".wip/kb/index.json manquant apres installation fraiche."
+    return
+  fi
+  if [ -f "$fixture/.wip/kb/INDEX.md" ]; then
+    fail "$name" ".wip/kb/INDEX.md ne devrait plus etre cree (remplace par index.json)."
+    return
+  fi
+  local index_content
+  index_content="$(cat "$index_path")"
+  if [ "$(echo "$index_content" | tr -d '[:space:]')" != "[]" ]; then
+    fail "$name" ".wip/kb/index.json d'une installation fraiche devrait etre un tableau vide, trouve: $index_content"
+    return
+  fi
+  for dir in active archived; do
+    if [ ! -d "$fixture/.wip/kb/$dir" ]; then
+      fail "$name" "Repertoire .wip/kb/$dir manquant apres installation."
+      return
+    fi
+  done
+
+  local maxime_kb_agent="$repository_root/install/Packaged/agents/maxime-kb.md"
+  if ! grep -q 'index\.json' "$maxime_kb_agent"; then
+    fail "$name" "L'agent maxime-kb genere ne mentionne pas index.json."
+    return
+  fi
+
+  pass "$name"
+}
+
 # Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
 # .git/info/exclude AND to .gitignore -- the whole install stays local via exclude,
 # and .gitignore documents/enforces the same patterns so the tool is never
@@ -377,6 +424,7 @@ check_no_legacy_copilot_tools
 check_no_allowed_tools_in_codex_skills
 check_cross_generator_sync
 check_fresh_install
+check_kb_json_format
 check_local_by_default
 check_standalone_lib_script
 check_workflow_agent_scoping

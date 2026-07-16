@@ -39,16 +39,16 @@ initialize_maxime_local_state() {
   local handoff_path="$state_root/memory/$day_stamp.session-handoff.md"
   local decisions_path="$state_root/adr/decisions-log.md"
   local dead_ends_path="$state_root/results/dead-ends.md"
-  local kb_index_path="$state_root/kb/INDEX.md"
+  local kb_index_path="$state_root/kb/index.json"
 
   if [ "$dry" = 1 ]; then
-    echo "[dry-run] mkdir -p $state_root/{memory,specs,adr,results,kb,tools} $repo_root/.bkp"
+    echo "[dry-run] mkdir -p $state_root/{memory,specs,adr,results,kb,kb/active,kb/archived,tools} $repo_root/.bkp"
     echo "[dry-run] copy cleanup-wip.ps1 and cleanup-wip.sh into $state_root/tools"
     echo "[dry-run] add /.wip/ and /.bkp/ to the target repo's Git local exclude file"
     return
   fi
 
-  mkdir -p "$state_root/memory" "$state_root/specs" "$state_root/adr" "$state_root/results" "$state_root/kb" "$state_root/tools" "$repo_root/.bkp"
+  mkdir -p "$state_root/memory" "$state_root/specs" "$state_root/adr" "$state_root/results" "$state_root/kb" "$state_root/kb/active" "$state_root/kb/archived" "$state_root/tools" "$repo_root/.bkp"
 
   if [ ! -f "$handoff_path" ]; then
     cat > "$handoff_path" <<EOF
@@ -69,7 +69,7 @@ EOF
 
   [ -f "$decisions_path" ] || printf '# Decisions Log\n' > "$decisions_path"
   [ -f "$dead_ends_path" ] || printf '# Dead Ends\n' > "$dead_ends_path"
-  [ -f "$kb_index_path" ] || printf '# KB Index\n\nUne ligne par fiche : nom, sujet, statut (.new ou revue).\n' > "$kb_index_path"
+  [ -f "$kb_index_path" ] || printf '[]' > "$kb_index_path"
 
   local tools_source="$src_repo_root/core/tools"
   local tools_backup_dir="$repo_root/.bkp/maxime-tools/$stamp"

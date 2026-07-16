@@ -35,6 +35,8 @@ function Initialize-MaximeLocalState {
         (Join-Path $stateRoot 'adr'),
         (Join-Path $stateRoot 'results'),
         (Join-Path $stateRoot 'kb'),
+        (Join-Path $stateRoot 'kb\active'),
+        (Join-Path $stateRoot 'kb\archived'),
         (Join-Path $stateRoot 'tools'),
         (Join-Path $RepoRoot '.bkp')
     )
@@ -51,7 +53,7 @@ function Initialize-MaximeLocalState {
     $handoffPath = Join-Path $stateRoot "memory\$dayStamp.session-handoff.md"
     $decisionsPath = Join-Path $stateRoot 'adr\decisions-log.md'
     $deadEndsPath = Join-Path $stateRoot 'results\dead-ends.md'
-    $kbIndexPath = Join-Path $stateRoot 'kb\INDEX.md'
+    $kbIndexPath = Join-Path $stateRoot 'kb\index.json'
 
     if (!(Test-Path $handoffPath)) {
         $defaultHandoff = @"
@@ -80,8 +82,7 @@ function Initialize-MaximeLocalState {
     }
 
     if (!(Test-Path $kbIndexPath)) {
-        $kbIndexContent = "# KB Index`n`nUne ligne par fiche : nom, sujet, statut (.new ou revue).`n"
-        Set-Content -Path $kbIndexPath -Value $kbIndexContent -Encoding UTF8
+        Set-Content -Path $kbIndexPath -Value '[]' -Encoding UTF8
     }
 
     $toolsRoot = Join-Path $stateRoot 'tools'
