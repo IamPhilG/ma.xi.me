@@ -71,6 +71,13 @@ function Install-CodexWorkspace {
         Copy-Item $_.FullName $skillsTargetRoot -Recurse -Force
     }
 
+    $srcVersion = Join-Path $srcRepoRoot 'install\Packaged\VERSION'
+    if (Test-Path $srcVersion) {
+        $versionTarget = Join-Path $RepoRoot '.agents\MAXIME_VERSION'
+        Backup-IfExists -Path $versionTarget -BackupDir $backupDir
+        Copy-Item $srcVersion $versionTarget -Force
+    }
+
     if (-not $WhatIfPreference) {
         Write-Host "mA.xI.me installe pour Codex (workspace)." -ForegroundColor Green
         Write-Host "Repo cible: $RepoRoot"
@@ -82,7 +89,8 @@ function Install-CodexWorkspace {
 
 $codexExcludeEntries = @(
     '/AGENTS.md',
-    '/.agents/skills/maxime-*/'
+    '/.agents/skills/maxime-*/',
+    '/.agents/MAXIME_VERSION'
 )
 
 Install-CodexWorkspace -RepoRoot $RepoRoot

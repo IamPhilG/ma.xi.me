@@ -86,6 +86,16 @@ function Initialize-MaximeLocalState {
     }
 
     $toolsRoot = Join-Path $stateRoot 'tools'
+    $networkPolicyPath = Join-Path $toolsRoot 'kb-network-policy.json'
+    if (!(Test-Path $networkPolicyPath)) {
+        # Fail-safe default: never assume network write access. Read defaults
+        # to true (most environments have outbound read access; air-gapped is
+        # the exception, not the norm) -- maxime-init overwrites both once
+        # the question is actually asked. See decisions-log 2026-07-16.
+        $defaultPolicy = '{"network_read": true, "network_write": false}'
+        Set-Content -Path $networkPolicyPath -Value $defaultPolicy -Encoding UTF8
+    }
+
     $toolsBackupDir = Join-Path $RepoRoot ".bkp\maxime-tools\$stamp"
     $wipToolsSource = Join-Path $srcRepoRoot 'core\tools'
     foreach ($toolName in @('cleanup-wip.ps1', 'cleanup-wip.sh')) {

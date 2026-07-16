@@ -7,6 +7,7 @@ retain_specs_days=30
 retain_results_days=30
 retain_tools_days=14
 retain_tests_days=30
+retain_kb_archived_days=90
 workspace_root=""
 no_report=0
 
@@ -36,6 +37,10 @@ while [ $# -gt 0 ]; do
     --retain-tests-days)
       shift
       retain_tests_days="${1:-}"
+      ;;
+    --retain-kb-archived-days)
+      shift
+      retain_kb_archived_days="${1:-}"
       ;;
     --no-report) no_report=1 ;;
     *)
@@ -67,6 +72,8 @@ adr_root="$wip_root/adr"
 results_root="$wip_root/results"
 tools_root="$wip_root/tools"
 tests_root="$wip_root/tests"
+kb_archived_root="$wip_root/kb/archived"
+kb_index_path="$wip_root/kb/index.json"
 
 now_epoch="$(date +%s)"
 
@@ -146,20 +153,48 @@ collect_by_age "$tools_root" "$retain_tools_days" \
   generate-adapters.ps1 generate-adapters.sh \
   check-adapter-sync.ps1 check-adapter-sync.sh \
   check-codex-skills-sync.ps1 check-codex-skills-sync.sh
+# Only kb/archived/ is age-purged (issue #20, point 3): kb/active/ fiches are
+# never auto-deleted by age, only flagged for revalidation via ttl_days
+# (maxime-kb rule 9). A fiche must be explicitly archived first.
+collect_by_age "$kb_archived_root" "$retain_kb_archived_days"
 
 deleted=()
 failures=()
+
+deleted_kb_paths=()
 
 if [ "$apply" -eq 1 ]; then
   for file in "${!candidates[@]}"; do
     if rm -f "$file"; then
       deleted+=("$file")
+      case "$file" in
+        "$kb_archived_root"/*)
+          deleted_kb_paths+=("${file#"$wip_root"/kb/}")
+          ;;
+      esac
     else
       failures+=("$file")
     fi
   done
 
-  for root in "$memory_root" "$specs_root" "$results_root" "$tools_root" "$tests_root"; do
+  # index.json never holds `content` (only short metadata), safe for jq.
+  # Skip gracefully without jq -- same degrade-without-jq pattern already
+  # used by the repo's destructive-bash guard hook.
+  if [ "${#deleted_kb_paths[@]}" -gt 0 ] && [ -f "$kb_index_path" ] && command -v jq >/dev/null 2>&1; then
+    filter='.'
+    for p in "${deleted_kb_paths[@]}"; do
+      filter="$filter | map(select(.path != \"$p\"))"
+    done
+    tmp_index="$(mktemp)"
+    if jq "$filter" "$kb_index_path" > "$tmp_index"; then
+      mv "$tmp_index" "$kb_index_path"
+    else
+      rm -f "$tmp_index"
+      failures+=("$kb_index_path :: jq filter failed")
+    fi
+  fi
+
+  for root in "$memory_root" "$specs_root" "$results_root" "$tools_root" "$tests_root" "$kb_archived_root"; do
     [ -d "$root" ] || continue
     while IFS= read -r -d '' empty_dir; do
       rmdir "$empty_dir" 2>/dev/null || true
@@ -183,7 +218,7 @@ if [ "$no_report" -eq 0 ]; then
     echo "- Repo root: $repo_root"
     echo "- WIP root: $wip_root"
     echo "- Keep handoffs: $keep_handoffs"
-    echo "- Retention days: specs=$retain_specs_days results=$retain_results_days tools=$retain_tools_days tests=$retain_tests_days"
+    echo "- Retention days: specs=$retain_specs_days results=$retain_results_days tools=$retain_tools_days tests=$retain_tests_days kb-archived=$retain_kb_archived_days"
     echo
     echo "## Candidates"
     if [ "${#candidates[@]}" -eq 0 ]; then

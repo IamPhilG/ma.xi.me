@@ -70,11 +70,13 @@ if (Test-Path $promptsTarget) {
     Remove-EmptyDirectory -Path $promptsTarget
 }
 
+Remove-IfExists -Path (Join-Path $ghRoot 'MAXIME_VERSION') -BackupDir $backupDir
 Remove-EmptyDirectory -Path $ghRoot
 
 $copilotEntries = @(
     '/.github/copilot-instructions.md',
-    '/.github/agents/maxime*.agent.md'
+    '/.github/agents/maxime*.agent.md',
+    '/.github/MAXIME_VERSION'
 )
 Remove-GitExcludeEntries -RepoRoot $RepoRoot -Entries $copilotEntries
 Remove-GitignoreEntries -RepoRoot $RepoRoot -Header '# mA.xI.me -- GitHub Copilot (outil installe, pas du code source)' -Entries $copilotEntries

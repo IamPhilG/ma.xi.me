@@ -67,15 +67,19 @@ if [ -d "$skills_target_root" ]; then
     remove_if_exists "$d" "$backup_dir/skills"
   done
   remove_empty_dir "$skills_target_root"
-  remove_empty_dir "$repo_root/.agents"
 fi
+
+remove_if_exists "$repo_root/.agents/MAXIME_VERSION" "$backup_dir"
+remove_empty_dir "$repo_root/.agents"
 
 remove_git_exclude_entries "$repo_root" \
   '/AGENTS.md' \
-  '/.agents/skills/maxime-*/'
+  '/.agents/skills/maxime-*/' \
+  '/.agents/MAXIME_VERSION'
 remove_gitignore_entries "$repo_root" '# mA.xI.me -- Codex (outil installe, pas du code source)' \
   '/AGENTS.md' \
-  '/.agents/skills/maxime-*/'
+  '/.agents/skills/maxime-*/' \
+  '/.agents/MAXIME_VERSION'
 
 echo -e "\033[32mmA.xI.me retire pour Codex (workspace).\033[0m"
 [ "$remove_state" = 1 ] || echo "Backups locaux: $backup_dir"

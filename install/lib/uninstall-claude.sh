@@ -93,6 +93,7 @@ if [ -d "$src_hooks" ] && [ -d "$hooks_target" ]; then
 fi
 
 remove_if_exists "$claude_root/settings.json" "$backup_dir"
+remove_if_exists "$claude_root/MAXIME_VERSION" "$backup_dir"
 remove_empty_dir "$claude_root"
 
 remove_git_exclude_entries "$repo_root" \
@@ -100,13 +101,15 @@ remove_git_exclude_entries "$repo_root" \
   '/.claude/agents/maxime*.md' \
   '/.claude/skills/maxime-*/' \
   '/.claude/hooks/block-destructive-bash.sh' \
-  '/.claude/settings.json'
+  '/.claude/settings.json' \
+  '/.claude/MAXIME_VERSION'
 remove_gitignore_entries "$repo_root" '# mA.xI.me -- Claude Code (outil installe, pas du code source)' \
   '/CLAUDE.md' \
   '/.claude/agents/maxime*.md' \
   '/.claude/skills/maxime-*/' \
   '/.claude/hooks/block-destructive-bash.sh' \
-  '/.claude/settings.json'
+  '/.claude/settings.json' \
+  '/.claude/MAXIME_VERSION'
 
 echo -e "\033[32mmA.xI.me retire pour Claude (workspace).\033[0m"
 [ "$remove_state" = 1 ] || echo "Backups locaux: $backup_dir"

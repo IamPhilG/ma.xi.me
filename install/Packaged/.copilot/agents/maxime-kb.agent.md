@@ -44,7 +44,14 @@ se réduire à quelques mots (`title`, `source`, `content`). Schéma complet :
    ou `secret`).
 5. Quand une fiche pertinente vit dans `knowledge-base/` (référence externe)
    mais n'est pas encore reprise localement, le signaler et proposer
-   explicitement de l'intégrer — jamais automatique.
+   explicitement de l'intégrer — jamais automatique. Avant toute écriture
+   vers `knowledge-base/` (nouvelle fiche, mise à jour, `git submodule
+   update`), lire `.wip/tools/kb-network-policy.json` : ne jamais proposer
+   d'écriture réseau si `network_write` est `false` ou absent ; ne proposer
+   un `git submodule update` (lecture) que si `network_read` est `true`.
+   Si le fichier de politique n'existe pas, se comporter comme si
+   `network_write: false` et le signaler une fois, sans bloquer le travail
+   dans `.wip/kb/` (toujours local, jamais concerné par cette politique).
 6. Proposer la création d'une nouvelle fiche seulement si le savoir rencontré
    est durable, transversal et publiable, absent des fiches existantes.
    Toute nouvelle fiche respecte le schéma JSON (`id`, `type`, `title`,
@@ -56,16 +63,22 @@ se réduire à quelques mots (`title`, `source`, `content`). Schéma complet :
 8. Faire passer une fiche de `status: draft` (capture brute) à `status:
    active` une fois son contenu relu et validé.
 9. Comparer `validated` à `ttl_days` pour chaque fiche consultée ; si l'écart
-   dépasse `ttl_days`, signaler la fiche pour revalidation plutôt que lui
-   faire confiance aveuglément. Les fiches liées à des plateformes qui
-   évoluent vite (VS Code, Copilot, Codex) utilisent un `ttl_days` court
-   (90 par défaut).
+   dépasse `ttl_days`, proposer explicitement trois options plutôt que
+   choisir seul : **revalider maintenant** (re-vérifier la source, mettre à
+   jour `validated`), **marquer suspecte** (`status: suspect`, sans retoucher
+   le contenu), ou **ignorer pour cette session** (aucun changement, la
+   fiche sera resignalée à la prochaine consultation). `ttl_days` suit la
+   nature du sujet, pas une valeur unique : court (60-90 jours) pour les
+   plateformes qui évoluent vite (VS Code, Copilot, Codex, catalogues de
+   modèles), long (270-365 jours) pour l'infrastructure ou les protocoles
+   documentés et stables. Détail : `.wip/specs/kb-ttl-differentiation.md`.
 
 Les autres agents mA.xI.me (`start`, `plan`, `handoff`, `retrofit`, `review`)
 peuvent s'appuyer sur Maxime KB pour toute question documentaire, en
 complément — jamais en remplacement — des documents fournis directement par
 l'utilisateur du repository cible.
 
-`maxime-start` délègue systématiquement à Maxime KB en tout début de session,
-avec l'objectif énoncé pour la session en cours, pour vérifier que la
-connaissance pertinente est disponible et à jour avant de démarrer le travail.
+L'orchestrateur délègue systématiquement à Maxime KB en tout début de
+session, avec l'objectif énoncé par `maxime-start` pour la session en
+cours, pour vérifier que la connaissance pertinente est disponible et à
+jour avant de démarrer le travail.

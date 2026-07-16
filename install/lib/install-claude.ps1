@@ -53,6 +53,13 @@ function Install-ClaudeWorkspace {
     Backup-IfExists -Path $claudeMdTarget -BackupDir $backupDir
     Copy-Item $srcClaudeMd $claudeMdTarget -Force
 
+    $srcVersion = Join-Path $srcRepoRoot 'install\Packaged\VERSION'
+    if (Test-Path $srcVersion) {
+        $versionTarget = Join-Path $claudeRootTarget 'MAXIME_VERSION'
+        Backup-IfExists -Path $versionTarget -BackupDir $backupDir
+        Copy-Item $srcVersion $versionTarget -Force
+    }
+
     $srcSettings = Join-Path $srcRepoRoot 'install\Packaged\.claude\settings.json'
     if (Test-Path $srcSettings) {
         Backup-IfExists -Path $settingsTarget -BackupDir $backupDir
@@ -101,7 +108,8 @@ $claudeExcludeEntries = @(
     '/.claude/agents/maxime*.md',
     '/.claude/skills/maxime-*/',
     '/.claude/hooks/block-destructive-bash.sh',
-    '/.claude/settings.json'
+    '/.claude/settings.json',
+    '/.claude/MAXIME_VERSION'
 )
 
 Install-ClaudeWorkspace -RepoRoot $RepoRoot

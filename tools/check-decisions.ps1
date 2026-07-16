@@ -296,6 +296,90 @@ try {
         $true
     }
 
+    # Decision: a fresh install creates .wip/tools/kb-network-policy.json
+    # (fail-safe default: network_write false, network_read true) and copies
+    # the source SHA marker (install/Packaged/VERSION) into the target repo
+    # as .claude/MAXIME_VERSION, so maxime-start can compare local vs remote.
+    # maxime-kb/maxime-start/maxime-init/maxime-handoff document the new
+    # network-policy, version-check, ttl-differentiation and
+    # session-learnings-capture behaviors in their generated text.
+    Test-Decision 'politique reseau KB + marqueur de version crees a l''installation fraiche' {
+        $fixture = Join-Path $tempRoot 'fixture-kb-version'
+        New-Item -ItemType Directory -Path $fixture | Out-Null
+        Push-Location $fixture
+        try { git init -q } finally { Pop-Location }
+        & (Join-Path $repositoryRoot 'install\install.ps1') -Target claude -WorkspaceRoot $fixture | Out-Null
+
+        $policyPath = Join-Path $fixture '.wip\tools\kb-network-policy.json'
+        if (!(Test-Path $policyPath)) {
+            throw '.wip/tools/kb-network-policy.json manquant apres installation fraiche.'
+        }
+        $policy = Get-Content -Raw -Path $policyPath | ConvertFrom-Json
+        if ($policy.network_write -ne $false) {
+            throw "network_write devrait etre false par defaut (fail-safe), trouve: $($policy.network_write)"
+        }
+        if ($policy.network_read -ne $true) {
+            throw "network_read devrait etre true par defaut, trouve: $($policy.network_read)"
+        }
+
+        $sourceVersionPath = Join-Path $repositoryRoot 'install\Packaged\VERSION'
+        if (!(Test-Path $sourceVersionPath)) {
+            throw 'install/Packaged/VERSION manquant -- generate-adapters.ps1/.sh devrait le produire.'
+        }
+        $installedVersionPath = Join-Path $fixture '.claude\MAXIME_VERSION'
+        if (!(Test-Path $installedVersionPath)) {
+            throw '.claude/MAXIME_VERSION non copie a l''installation.'
+        }
+        $sourceSha = (Get-Content -Raw -Path $sourceVersionPath).Trim()
+        $installedSha = (Get-Content -Raw -Path $installedVersionPath).Trim()
+        if ($sourceSha -ne $installedSha) {
+            throw ".claude/MAXIME_VERSION ($installedSha) ne correspond pas a install/Packaged/VERSION ($sourceSha)."
+        }
+
+        $maximeStart = Get-Content -Raw -Path (Join-Path $repositoryRoot 'install\Packaged\agents\maxime-start.md')
+        if ($maximeStart -notmatch 'MAXIME_VERSION') {
+            throw "L'agent maxime-start genere ne mentionne pas la comparaison de version."
+        }
+        $maximeKb = Get-Content -Raw -Path (Join-Path $repositoryRoot 'install\Packaged\agents\maxime-kb.md')
+        if ($maximeKb -notmatch 'kb-network-policy\.json') {
+            throw "L'agent maxime-kb genere ne mentionne pas la politique reseau."
+        }
+        if ($maximeKb -notmatch 'ttl_days') {
+            throw "L'agent maxime-kb genere ne mentionne pas ttl_days."
+        }
+        $maximeHandoff = Get-Content -Raw -Path (Join-Path $repositoryRoot 'install\Packaged\agents\maxime-handoff.md')
+        if ($maximeHandoff -notmatch 'Maxime KB') {
+            throw "L'agent maxime-handoff genere ne mentionne pas la capture de lecons via Maxime KB."
+        }
+        $maximeInit = Get-Content -Raw -Path (Join-Path $repositoryRoot 'install\Packaged\agents\maxime-init.md')
+        if ($maximeInit -notmatch 'network_read|network_write') {
+            throw "L'agent maxime-init genere ne mentionne pas la question de politique reseau."
+        }
+        $true
+    }
+
+    # Decision: cleanup-wip only purges .wip/kb/archived/ by age (never
+    # .wip/kb/active/), and must not fail when .wip/kb/archived/ does not
+    # exist yet (same class of regression as the 2026-07-11 set -e/tests bug).
+    Test-Decision 'cleanup-wip gere .wip/kb/archived/ absent sans erreur' {
+        $fixture = Join-Path $tempRoot 'fixture-kb-cleanup'
+        New-Item -ItemType Directory -Path $fixture | Out-Null
+        Push-Location $fixture
+        try { git init -q } finally { Pop-Location }
+        & (Join-Path $repositoryRoot 'install\install.ps1') -Target claude -WorkspaceRoot $fixture | Out-Null
+
+        $kbArchived = Join-Path $fixture '.wip\kb\archived'
+        if (Test-Path $kbArchived) {
+            Remove-Item -Path $kbArchived -Recurse -Force
+        }
+        $cleanup = Join-Path $fixture '.wip\tools\cleanup-wip.ps1'
+        & $cleanup -WorkspaceRoot $fixture | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "cleanup-wip.ps1 a echoue (exit $LASTEXITCODE) avec .wip/kb/archived absent."
+        }
+        $true
+    }
+
     # Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
     # .git/info/exclude AND to .gitignore -- the whole install stays local via exclude,
     # and .gitignore documents/enforces the same patterns so the tool is never

@@ -265,6 +265,101 @@ check_kb_json_format() {
   pass "$name"
 }
 
+# Decision: a fresh install creates .wip/tools/kb-network-policy.json
+# (fail-safe default: network_write false, network_read true) and copies the
+# source SHA marker (install/Packaged/VERSION) into the target repo as
+# .claude/MAXIME_VERSION, so maxime-start can compare local vs remote.
+# maxime-kb/maxime-start/maxime-init/maxime-handoff document the new
+# network-policy, version-check, ttl-differentiation and
+# session-learnings-capture behaviors in their generated text.
+check_kb_network_policy_and_version() {
+  local name="politique reseau KB + marqueur de version crees a l'installation fraiche"
+  local fixture="$temp_root/fixture-kb-version"
+  mkdir -p "$fixture"
+  (cd "$fixture" && git init -q)
+
+  if ! bash "$repository_root/install/install.sh" --target claude --workspace-root "$fixture" >/dev/null; then
+    fail "$name" "Installation a echoue."
+    return
+  fi
+
+  local policy_path="$fixture/.wip/tools/kb-network-policy.json"
+  if [ ! -f "$policy_path" ]; then
+    fail "$name" ".wip/tools/kb-network-policy.json manquant apres installation fraiche."
+    return
+  fi
+  if ! grep -q '"network_write": false' "$policy_path"; then
+    fail "$name" "network_write devrait etre false par defaut, trouve: $(cat "$policy_path")"
+    return
+  fi
+  if ! grep -q '"network_read": true' "$policy_path"; then
+    fail "$name" "network_read devrait etre true par defaut, trouve: $(cat "$policy_path")"
+    return
+  fi
+
+  local source_version_path="$repository_root/install/Packaged/VERSION"
+  if [ ! -f "$source_version_path" ]; then
+    fail "$name" "install/Packaged/VERSION manquant -- generate-adapters.sh devrait le produire."
+    return
+  fi
+  local installed_version_path="$fixture/.claude/MAXIME_VERSION"
+  if [ ! -f "$installed_version_path" ]; then
+    fail "$name" ".claude/MAXIME_VERSION non copie a l'installation."
+    return
+  fi
+  if ! cmp -s "$source_version_path" "$installed_version_path"; then
+    fail "$name" ".claude/MAXIME_VERSION ne correspond pas a install/Packaged/VERSION."
+    return
+  fi
+
+  if ! grep -q 'MAXIME_VERSION' "$repository_root/install/Packaged/agents/maxime-start.md"; then
+    fail "$name" "L'agent maxime-start genere ne mentionne pas la comparaison de version."
+    return
+  fi
+  local maxime_kb_agent="$repository_root/install/Packaged/agents/maxime-kb.md"
+  if ! grep -q 'kb-network-policy\.json' "$maxime_kb_agent"; then
+    fail "$name" "L'agent maxime-kb genere ne mentionne pas la politique reseau."
+    return
+  fi
+  if ! grep -q 'ttl_days' "$maxime_kb_agent"; then
+    fail "$name" "L'agent maxime-kb genere ne mentionne pas ttl_days."
+    return
+  fi
+  if ! grep -q 'Maxime KB' "$repository_root/install/Packaged/agents/maxime-handoff.md"; then
+    fail "$name" "L'agent maxime-handoff genere ne mentionne pas la capture de lecons via Maxime KB."
+    return
+  fi
+  if ! grep -qE 'network_read|network_write' "$repository_root/install/Packaged/agents/maxime-init.md"; then
+    fail "$name" "L'agent maxime-init genere ne mentionne pas la question de politique reseau."
+    return
+  fi
+
+  pass "$name"
+}
+
+# Decision: cleanup-wip only purges .wip/kb/archived/ by age (never
+# .wip/kb/active/), and must not fail when .wip/kb/archived/ does not exist
+# yet (same class of regression as the 2026-07-11 set -e/tests bug).
+check_kb_cleanup_without_archived() {
+  local name="cleanup-wip gere .wip/kb/archived/ absent sans erreur"
+  local fixture="$temp_root/fixture-kb-cleanup"
+  mkdir -p "$fixture"
+  (cd "$fixture" && git init -q)
+
+  if ! bash "$repository_root/install/install.sh" --target claude --workspace-root "$fixture" >/dev/null; then
+    fail "$name" "Installation a echoue."
+    return
+  fi
+
+  rm -rf "$fixture/.wip/kb/archived"
+  if ! bash "$fixture/.wip/tools/cleanup-wip.sh" --workspace-root "$fixture" >/dev/null; then
+    fail "$name" "cleanup-wip.sh a echoue avec .wip/kb/archived absent."
+    return
+  fi
+
+  pass "$name"
+}
+
 # Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
 # .git/info/exclude AND to .gitignore -- the whole install stays local via exclude,
 # and .gitignore documents/enforces the same patterns so the tool is never
@@ -425,6 +520,8 @@ check_no_allowed_tools_in_codex_skills
 check_cross_generator_sync
 check_fresh_install
 check_kb_json_format
+check_kb_network_policy_and_version
+check_kb_cleanup_without_archived
 check_local_by_default
 check_standalone_lib_script
 check_workflow_agent_scoping

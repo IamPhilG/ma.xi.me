@@ -83,6 +83,7 @@ if ((Test-Path $srcHooks) -and (Test-Path $hooksTarget)) {
 }
 
 Remove-IfExists -Path (Join-Path $claudeRoot 'settings.json') -BackupDir $backupDir
+Remove-IfExists -Path (Join-Path $claudeRoot 'MAXIME_VERSION') -BackupDir $backupDir
 Remove-EmptyDirectory -Path $claudeRoot
 
 $claudeEntries = @(
@@ -90,7 +91,8 @@ $claudeEntries = @(
     '/.claude/agents/maxime*.md',
     '/.claude/skills/maxime-*/',
     '/.claude/hooks/block-destructive-bash.sh',
-    '/.claude/settings.json'
+    '/.claude/settings.json',
+    '/.claude/MAXIME_VERSION'
 )
 Remove-GitExcludeEntries -RepoRoot $RepoRoot -Entries $claudeEntries
 Remove-GitignoreEntries -RepoRoot $RepoRoot -Header '# mA.xI.me -- Claude Code (outil installe, pas du code source)' -Entries $claudeEntries
