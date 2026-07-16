@@ -106,7 +106,7 @@ mA.xI.me is the single orchestrator for structured work. It applies the common c
 
 $bootstrap_guard
 
-For significant work, delegate to maxime-start, create a specification via maxime-plan, wait for approval before writes, then conclude with verification and a handoff when needed.
+For significant work, delegate to maxime-start; once it states the session objective, delegate to maxime-kb with that objective to check whether relevant knowledge is available and current before proceeding; then create a specification via maxime-plan, wait for approval before writes, then conclude with verification and a handoff when needed.
 
 The shared state is always .wip/. Host-specific extensions are additions and do not replace the common core."
 

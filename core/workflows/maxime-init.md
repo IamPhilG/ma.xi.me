@@ -15,6 +15,11 @@ réinstaller/mettre à jour une installation existante (idempotent, comme
    projetés : ces scripts sont la source de vérité testée.
 7. Vérifier les fichiers projetés et l'exclusion Git de `.wip/` et `.bkp/`
    (`.git/info/exclude` et `.gitignore`).
+8. Si une knowledge base partagée existe pour ce contexte, proposer
+   explicitement `git submodule add <url> knowledge-base` — jamais
+   automatique, jamais sans connaître l'URL du repo KB à utiliser. Si
+   Philippe ne fournit pas d'URL ou décline, ne pas insister : Maxime KB
+   fonctionne déjà avec `.wip/kb/` seul.
 
 L'installation est toujours locale au repository cible ; aucun répertoire global
 utilisateur n'est utilisé. Aucun autre agent mA.xI.me (`start`, `plan`,

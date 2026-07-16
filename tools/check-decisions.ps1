@@ -252,6 +252,50 @@ try {
         $true
     }
 
+    # Decision: KB fiches under .wip/kb/ are JSON (id/type/theme/tags/scope/status/
+    # confidence/audience/source/validated/created/ttl_days/links/content), not
+    # Markdown+frontmatter. A fresh install creates .wip/kb/index.json (empty array),
+    # .wip/kb/active/ and .wip/kb/archived/ -- never .wip/kb/INDEX.md. The generated
+    # maxime-kb agent documents the JSON schema, not the old ".new" filename convention.
+    Test-Decision 'KB au format JSON (index.json + active/archived), pas Markdown+INDEX.md' {
+        $fixture = Join-Path $tempRoot 'fixture-kb-json'
+        New-Item -ItemType Directory -Path $fixture | Out-Null
+        Push-Location $fixture
+        try { git init -q } finally { Pop-Location }
+        & (Join-Path $repositoryRoot 'install\install.ps1') -Target claude -WorkspaceRoot $fixture | Out-Null
+
+        $indexPath = Join-Path $fixture '.wip\kb\index.json'
+        if (!(Test-Path $indexPath)) {
+            throw '.wip/kb/index.json manquant apres installation fraiche.'
+        }
+        if (Test-Path (Join-Path $fixture '.wip\kb\INDEX.md')) {
+            throw '.wip/kb/INDEX.md ne devrait plus etre cree (remplace par index.json).'
+        }
+        try {
+            $parsed = Get-Content -Raw -Path $indexPath | ConvertFrom-Json
+        }
+        catch {
+            throw ".wip/kb/index.json n'est pas un JSON valide: $($_.Exception.Message)"
+        }
+        if ($parsed.Count -ne 0) {
+            throw ".wip/kb/index.json d'une installation fraiche devrait etre un tableau vide."
+        }
+        foreach ($dir in @('active', 'archived')) {
+            if (!(Test-Path (Join-Path $fixture ".wip\kb\$dir"))) {
+                throw "Repertoire .wip/kb/$dir manquant apres installation."
+            }
+        }
+
+        $maximeKbAgent = Get-Content -Raw -Path (Join-Path $repositoryRoot 'install\Packaged\agents\maxime-kb.md')
+        if ($maximeKbAgent -notmatch 'index\.json') {
+            throw "L'agent maxime-kb genere ne mentionne pas index.json."
+        }
+        if ($maximeKbAgent -match '\.new\b.*ou revue|revue\)?\s*$') {
+            throw "L'agent maxime-kb genere semble encore documenter l'ancienne convention de nommage .new/revue au lieu du champ status."
+        }
+        $true
+    }
+
     # Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
     # .git/info/exclude AND to .gitignore -- the whole install stays local via exclude,
     # and .gitignore documents/enforces the same patterns so the tool is never
