@@ -37,6 +37,7 @@ function Initialize-MaximeLocalState {
         (Join-Path $stateRoot 'kb'),
         (Join-Path $stateRoot 'kb\active'),
         (Join-Path $stateRoot 'kb\archived'),
+        (Join-Path $stateRoot 'tmp'),
         (Join-Path $stateRoot 'tools'),
         (Join-Path $RepoRoot '.bkp')
     )

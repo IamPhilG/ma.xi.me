@@ -52,3 +52,7 @@ Thumbs.db
 /.github/MAXIME_VERSION
 
 /.agents/MAXIME_VERSION
+
+/.claude/hooks/block-destructive-powershell.sh
+/.claude/hooks/block-outside-repo-write.sh
+/.claude/hooks/lib-path-guard.sh

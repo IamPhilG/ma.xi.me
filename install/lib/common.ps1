@@ -4,7 +4,13 @@
 # Present in the header of every file generate-adapters.* produces -- used to
 # tell "this is our own prior output" apart from "the target repo already had
 # its own project-specific file before mA.xI.me was installed" (issue #27).
-$script:MaximeGeneratedMarker = 'Generated from `core/socle.md`. Do not edit directly.'
+# NB: no backticks around core/socle.md, even though generate-adapters.ps1's
+# source template has them -- PowerShell's double-quoted here-string treats
+# `` `c `` as an unrecognized escape and silently drops the backtick, so the
+# text that actually lands in every generated file never has them. Verified
+# by grepping install/Packaged/{CLAUDE.md,AGENTS.md,.copilot/copilot-instructions.md}
+# (2026-07-16). This constant must match reality, not the source template.
+$script:MaximeGeneratedMarker = 'Generated from core/socle.md. Do not edit directly.'
 
 function Save-PreExistingProjectContent {
     <#

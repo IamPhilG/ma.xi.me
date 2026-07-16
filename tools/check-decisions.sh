@@ -506,6 +506,109 @@ check_preserve_project_content() {
   pass "$name"
 }
 
+# Decision (issue #34): no write is allowed outside the target repo, not
+# just by the installer -- .wip/tmp/ is the sanctioned place for ephemeral
+# files, and 3 hooks enforce path-containment for the tools that can write:
+# Bash (block-destructive-bash.sh), PowerShell (block-destructive-powershell.sh,
+# verified empirically that Claude Code hooks CAN intercept the PowerShell
+# tool), and Write/Edit/NotebookEdit (block-outside-repo-write.sh, the
+# reliable check -- it reads tool_input.file_path directly, no command
+# string to guess at). A fresh install creates .wip/tmp/ and the three hook
+# scripts + lib-path-guard.sh; functional checks below pipe real payloads
+# through each hook and assert the actual allow/deny decision, not just
+# file presence.
+check_no_writes_outside_repo() {
+  local name="aucune ecriture hors du repo -- .wip/tmp/ + 3 hooks path-aware (issue #34)"
+  local fixture="$temp_root/fixture-no-outside-write"
+  mkdir -p "$fixture"
+  (cd "$fixture" && git init -q)
+  # Re-resolve to whatever form `git rev-parse --show-toplevel` normalizes
+  # to (on this git-bash/Windows setup, that's the C:/... drive-letter form,
+  # not the /tmp/... form mktemp -d originally returned) -- the hooks
+  # themselves resolve repo_root the same way, so the fixture path used in
+  # every payload below must match that exact representation or the
+  # containment check compares two different spellings of the same directory.
+  fixture="$(git -C "$fixture" rev-parse --show-toplevel)"
+
+  if ! bash "$repository_root/install/install.sh" --target claude --workspace-root "$fixture" >/dev/null; then
+    fail "$name" "Installation a echoue."
+    return
+  fi
+
+  if [ ! -d "$fixture/.wip/tmp" ]; then
+    fail "$name" ".wip/tmp/ non cree a l'installation fraiche."
+    return
+  fi
+
+  local hooks_dir="$fixture/.claude/hooks"
+  for f in lib-path-guard.sh block-destructive-bash.sh block-destructive-powershell.sh block-outside-repo-write.sh; do
+    if [ ! -f "$hooks_dir/$f" ]; then
+      fail "$name" "$f manquant dans .claude/hooks/ apres installation."
+      return
+    fi
+  done
+
+  if ! grep -q '"matcher": "PowerShell"' "$fixture/.claude/settings.json"; then
+    fail "$name" ".claude/settings.json ne declare pas de hook pour l'outil PowerShell."
+    return
+  fi
+  if ! grep -qE '"matcher": "Write\|Edit\|NotebookEdit"' "$fixture/.claude/settings.json"; then
+    fail "$name" ".claude/settings.json ne declare pas de hook pour Write/Edit/NotebookEdit."
+    return
+  fi
+
+  # Functional checks: real payloads through the real hooks, asserting the
+  # actual allow/deny decision (jq present is a prerequisite of this repo's
+  # own hook, see README "Prerequis").
+  local outside_dir
+  outside_dir="$(mktemp -d)"
+  local payload out
+
+  payload="$(mktemp)"
+  printf '{"cwd":"%s","tool_input":{"file_path":"%s/outside.txt","content":"x"}}' "$fixture" "$outside_dir" > "$payload"
+  out="$(bash "$hooks_dir/block-outside-repo-write.sh" < "$payload")"
+  if [ -z "$out" ]; then
+    fail "$name" "block-outside-repo-write.sh laisse passer une ecriture hors repo (Write/Edit)."
+    rm -rf "$outside_dir" "$payload"
+    return
+  fi
+
+  printf '{"cwd":"%s","tool_input":{"file_path":"%s/.wip/tmp/inside.txt","content":"x"}}' "$fixture" "$fixture" > "$payload"
+  out="$(bash "$hooks_dir/block-outside-repo-write.sh" < "$payload")"
+  if [ -n "$out" ]; then
+    fail "$name" "block-outside-repo-write.sh bloque une ecriture legitime DANS le repo (.wip/tmp/)."
+    rm -rf "$outside_dir" "$payload"
+    return
+  fi
+
+  printf '{"cwd":"%s","tool_input":{"command":"echo hello > %s/outside.txt"}}' "$fixture" "$outside_dir" > "$payload"
+  out="$(bash "$hooks_dir/block-destructive-bash.sh" < "$payload")"
+  if [ -z "$out" ]; then
+    fail "$name" "block-destructive-bash.sh laisse passer une redirection vers un chemin absolu hors repo."
+    rm -rf "$outside_dir" "$payload"
+    return
+  fi
+
+  printf '{"cwd":"%s","tool_input":{"command":"echo hello > .wip/tmp/inside.txt"}}' "$fixture" > "$payload"
+  out="$(bash "$hooks_dir/block-destructive-bash.sh" < "$payload")"
+  if [ -n "$out" ]; then
+    fail "$name" "block-destructive-bash.sh bloque une redirection relative legitime DANS le repo (regression du faux positif issue #27)."
+    rm -rf "$outside_dir" "$payload"
+    return
+  fi
+
+  printf '{"cwd":"%s","tool_input":{"command":"Set-Content -Path \\"%s\\\\outside.txt\\" -Value hello"}}' "$fixture" "$outside_dir" > "$payload"
+  out="$(bash "$hooks_dir/block-destructive-powershell.sh" < "$payload")"
+  if [ -z "$out" ]; then
+    fail "$name" "block-destructive-powershell.sh laisse passer une ecriture vers un chemin absolu entre guillemets hors repo."
+    rm -rf "$outside_dir" "$payload"
+    return
+  fi
+
+  rm -rf "$outside_dir" "$payload"
+  pass "$name"
+}
+
 # Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
 # .git/info/exclude AND to .gitignore -- the whole install stays local via exclude,
 # and .gitignore documents/enforces the same patterns so the tool is never
@@ -670,6 +773,7 @@ check_kb_network_policy_and_version
 check_kb_submodule_push_mechanics
 check_kb_cleanup_without_archived
 check_preserve_project_content
+check_no_writes_outside_repo
 check_local_by_default
 check_standalone_lib_script
 check_workflow_agent_scoping

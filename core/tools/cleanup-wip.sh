@@ -8,6 +8,7 @@ retain_results_days=30
 retain_tools_days=14
 retain_tests_days=30
 retain_kb_archived_days=90
+retain_tmp_days=1
 workspace_root=""
 no_report=0
 
@@ -42,6 +43,10 @@ while [ $# -gt 0 ]; do
       shift
       retain_kb_archived_days="${1:-}"
       ;;
+    --retain-tmp-days)
+      shift
+      retain_tmp_days="${1:-}"
+      ;;
     --no-report) no_report=1 ;;
     *)
       echo "Unknown option: $1" >&2
@@ -74,6 +79,7 @@ tools_root="$wip_root/tools"
 tests_root="$wip_root/tests"
 kb_archived_root="$wip_root/kb/archived"
 kb_index_path="$wip_root/kb/index.json"
+tmp_root="$wip_root/tmp"
 
 now_epoch="$(date +%s)"
 
@@ -157,6 +163,10 @@ collect_by_age "$tools_root" "$retain_tools_days" \
 # never auto-deleted by age, only flagged for revalidation via ttl_days
 # (maxime-kb rule 9). A fiche must be explicitly archived first.
 collect_by_age "$kb_archived_root" "$retain_kb_archived_days"
+# .wip/tmp/ is for genuinely ephemeral work only (see core/socle.md: never
+# write outside the target repo, use .wip/tmp/ instead) -- short default
+# retention, nothing there is meant to survive long.
+collect_by_age "$tmp_root" "$retain_tmp_days"
 
 deleted=()
 failures=()
@@ -194,7 +204,7 @@ if [ "$apply" -eq 1 ]; then
     fi
   fi
 
-  for root in "$memory_root" "$specs_root" "$results_root" "$tools_root" "$tests_root" "$kb_archived_root"; do
+  for root in "$memory_root" "$specs_root" "$results_root" "$tools_root" "$tests_root" "$kb_archived_root" "$tmp_root"; do
     [ -d "$root" ] || continue
     while IFS= read -r -d '' empty_dir; do
       rmdir "$empty_dir" 2>/dev/null || true
@@ -218,7 +228,7 @@ if [ "$no_report" -eq 0 ]; then
     echo "- Repo root: $repo_root"
     echo "- WIP root: $wip_root"
     echo "- Keep handoffs: $keep_handoffs"
-    echo "- Retention days: specs=$retain_specs_days results=$retain_results_days tools=$retain_tools_days tests=$retain_tests_days kb-archived=$retain_kb_archived_days"
+    echo "- Retention days: specs=$retain_specs_days results=$retain_results_days tools=$retain_tools_days tests=$retain_tests_days kb-archived=$retain_kb_archived_days tmp=$retain_tmp_days"
     echo
     echo "## Candidates"
     if [ "${#candidates[@]}" -eq 0 ]; then

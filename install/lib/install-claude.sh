@@ -128,6 +128,9 @@ if [ "$shared" != 1 ]; then
     '/.claude/agents/maxime*.md' \
     '/.claude/skills/maxime-*/' \
     '/.claude/hooks/block-destructive-bash.sh' \
+    '/.claude/hooks/block-destructive-powershell.sh' \
+    '/.claude/hooks/block-outside-repo-write.sh' \
+    '/.claude/hooks/lib-path-guard.sh' \
     '/.claude/settings.json' \
     '/.claude/MAXIME_VERSION'
   add_gitignore_entries "$repo_root" '# mA.xI.me -- Claude Code (outil installe, pas du code source)' \
@@ -135,6 +138,9 @@ if [ "$shared" != 1 ]; then
     '/.claude/agents/maxime*.md' \
     '/.claude/skills/maxime-*/' \
     '/.claude/hooks/block-destructive-bash.sh' \
+    '/.claude/hooks/block-destructive-powershell.sh' \
+    '/.claude/hooks/block-outside-repo-write.sh' \
+    '/.claude/hooks/lib-path-guard.sh' \
     '/.claude/settings.json' \
     '/.claude/MAXIME_VERSION'
 fi

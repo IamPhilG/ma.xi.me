@@ -11,6 +11,7 @@ mA.xI.me est une méthode de travail commune à Claude Code, GitHub Copilot et C
 - Demander une validation explicite avant toute écriture, suppression ou action irréversible qui n'a pas déjà été autorisée.
 - Ne jamais exposer de secrets ni exécuter une action destructive sans confirmation explicite.
 - Utiliser Git prudemment : inspecter l'état avant d'agir et ne jamais exécuter de staging global automatique.
+- Aucune écriture hors du repository cible, y compris les fichiers temporaires ou de travail éphémère : utiliser `.wip/tmp/` pour ce besoin, jamais un scratchpad ou un répertoire temporaire fourni par l'hôte en dehors du repository.
 - Vérifier le résultat le plus directement possible avant de déclarer le travail terminé.
 - Quand une vérification attendue n'a pas été exécutée, écrire exactement : `non vérifié par exécution`.
 - Toute décision structurante consignée dans `adr/decisions-log.md` est accompagnée d'un test exécutable qui échoue si elle cesse d'être respectée ; la ligne de décision référence ce test (chemin ou commande).

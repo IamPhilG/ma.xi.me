@@ -11,6 +11,28 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/block-destructive-powershell.sh",
+            "shell": "bash",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/block-outside-repo-write.sh",
+            "shell": "bash",
+            "timeout": 10
+          }
+        ]
       }
     ]
   }
