@@ -59,12 +59,15 @@ if (Test-Path $skillsTargetRoot) {
         Remove-IfExists -Path $_.FullName -BackupDir (Join-Path $backupDir 'skills')
     }
     Remove-EmptyDirectory -Path $skillsTargetRoot
-    Remove-EmptyDirectory -Path (Join-Path $RepoRoot '.agents')
 }
+
+Remove-IfExists -Path (Join-Path $RepoRoot '.agents\MAXIME_VERSION') -BackupDir $backupDir
+Remove-EmptyDirectory -Path (Join-Path $RepoRoot '.agents')
 
 $codexEntries = @(
     '/AGENTS.md',
-    '/.agents/skills/maxime-*/'
+    '/.agents/skills/maxime-*/',
+    '/.agents/MAXIME_VERSION'
 )
 Remove-GitExcludeEntries -RepoRoot $RepoRoot -Entries $codexEntries
 Remove-GitignoreEntries -RepoRoot $RepoRoot -Header '# mA.xI.me -- Codex (outil installe, pas du code source)' -Entries $codexEntries

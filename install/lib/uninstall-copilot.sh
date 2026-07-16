@@ -79,14 +79,17 @@ if [ -d "$prompts_target" ]; then
   remove_empty_dir "$prompts_target"
 fi
 
+remove_if_exists "$gh_root/MAXIME_VERSION" "$backup_dir"
 remove_empty_dir "$gh_root"
 
 remove_git_exclude_entries "$repo_root" \
   '/.github/copilot-instructions.md' \
-  '/.github/agents/maxime*.agent.md'
+  '/.github/agents/maxime*.agent.md' \
+  '/.github/MAXIME_VERSION'
 remove_gitignore_entries "$repo_root" '# mA.xI.me -- GitHub Copilot (outil installe, pas du code source)' \
   '/.github/copilot-instructions.md' \
-  '/.github/agents/maxime*.agent.md'
+  '/.github/agents/maxime*.agent.md' \
+  '/.github/MAXIME_VERSION'
 
 echo -e "\033[32mmA.xI.me retire pour Copilot (workspace).\033[0m"
 [ "$remove_state" = 1 ] || echo "Backups locaux: $backup_dir"

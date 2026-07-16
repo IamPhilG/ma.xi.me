@@ -20,6 +20,18 @@ réinstaller/mettre à jour une installation existante (idempotent, comme
    automatique, jamais sans connaître l'URL du repo KB à utiliser. Si
    Philippe ne fournit pas d'URL ou décline, ne pas insister : Maxime KB
    fonctionne déjà avec `.wip/kb/` seul.
+9. Demander explicitement si cet environnement autorise l'écriture réseau
+   (push vers le repo KB partagé) et la lecture réseau (pull/clone), et
+   consigner la réponse dans `.wip/tools/kb-network-policy.json`
+   (`network_read`, `network_write`). Par défaut si jamais répondu :
+   `network_write: false` — ne jamais présumer une écriture autorisée.
+   Maxime KB consulte ce fichier avant toute action réseau.
+10. Si cet appel est une **mise à jour** d'une installation existante (pas
+    une première installation), afficher le SHA source local
+    (`.claude/MAXIME_VERSION` ou équivalent par hôte) et le SHA distant
+    avant de redemander confirmation — la mise à jour n'est jamais une
+    boîte noire. La mise à jour recompose les mêmes petits scripts
+    `install/lib/` que l'étape 6, jamais un script séparé.
 
 L'installation est toujours locale au repository cible ; aucun répertoire global
 utilisateur n'est utilisé. Aucun autre agent mA.xI.me (`start`, `plan`,

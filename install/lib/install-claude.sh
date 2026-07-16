@@ -41,6 +41,7 @@ install_claude_workspace() {
   local src_skills="$src_repo_root/install/Packaged/skills"
   local src_settings="$src_repo_root/install/Packaged/.claude/settings.json"
   local src_hooks="$src_repo_root/install/Packaged/.claude/hooks"
+  local src_version="$src_repo_root/install/Packaged/VERSION"
 
   if [ ! -f "$src_claude_md" ]; then
     echo "Missing source file: $src_claude_md" >&2
@@ -67,6 +68,12 @@ install_claude_workspace() {
   if [ -f "$src_settings" ]; then
     backup_if_exists "$settings_target" "$backup_dir"
     run cp -f "$src_settings" "$settings_target"
+  fi
+
+  if [ -f "$src_version" ]; then
+    local version_target="$claude_root/MAXIME_VERSION"
+    backup_if_exists "$version_target" "$backup_dir"
+    run cp -f "$src_version" "$version_target"
   fi
 
   if [ -d "$src_hooks" ]; then
@@ -118,11 +125,13 @@ if [ "$shared" != 1 ]; then
     '/.claude/agents/maxime*.md' \
     '/.claude/skills/maxime-*/' \
     '/.claude/hooks/block-destructive-bash.sh' \
-    '/.claude/settings.json'
+    '/.claude/settings.json' \
+    '/.claude/MAXIME_VERSION'
   add_gitignore_entries "$repo_root" '# mA.xI.me -- Claude Code (outil installe, pas du code source)' \
     '/CLAUDE.md' \
     '/.claude/agents/maxime*.md' \
     '/.claude/skills/maxime-*/' \
     '/.claude/hooks/block-destructive-bash.sh' \
-    '/.claude/settings.json'
+    '/.claude/settings.json' \
+    '/.claude/MAXIME_VERSION'
 fi

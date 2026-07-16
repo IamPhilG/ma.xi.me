@@ -63,6 +63,13 @@ function Install-CopilotWorkspace {
 
     Copy-Item (Join-Path $copilotSrc 'copilot-instructions.md') $instructionsTarget -Force
 
+    $srcVersion = Join-Path $srcRepoRoot 'install\Packaged\VERSION'
+    if (Test-Path $srcVersion) {
+        $versionTarget = Join-Path $ghRoot 'MAXIME_VERSION'
+        Backup-IfExists -Path $versionTarget -BackupDir $backupDir
+        Copy-Item $srcVersion $versionTarget -Force
+    }
+
     if (-not $WhatIfPreference) {
         Write-Host "mA.xI.me installe pour Copilot (workspace)." -ForegroundColor Green
         Write-Host "Repo cible: $RepoRoot"
@@ -74,7 +81,8 @@ function Install-CopilotWorkspace {
 
 $copilotExcludeEntries = @(
     '/.github/copilot-instructions.md',
-    '/.github/agents/maxime*.agent.md'
+    '/.github/agents/maxime*.agent.md',
+    '/.github/MAXIME_VERSION'
 )
 
 Install-CopilotWorkspace -RepoRoot $RepoRoot

@@ -79,6 +79,13 @@ install_codex_workspace() {
     exit 1
   fi
 
+  local src_version="$src_repo_root/install/Packaged/VERSION"
+  if [ -f "$src_version" ]; then
+    local version_target="$repo_root/.agents/MAXIME_VERSION"
+    backup_if_exists "$version_target" "$backup_dir"
+    run cp -f "$src_version" "$version_target"
+  fi
+
   if [ "$dry" = 0 ]; then
     echo -e "\033[32mmA.xI.me installe pour Codex (workspace).\033[0m"
     echo "Repo cible: $repo_root"
@@ -93,8 +100,10 @@ install_codex_workspace
 if [ "$shared" != 1 ]; then
   add_git_exclude_entries "$repo_root" \
     '/AGENTS.md' \
-    '/.agents/skills/maxime-*/'
+    '/.agents/skills/maxime-*/' \
+    '/.agents/MAXIME_VERSION'
   add_gitignore_entries "$repo_root" '# mA.xI.me -- Codex (outil installe, pas du code source)' \
     '/AGENTS.md' \
-    '/.agents/skills/maxime-*/'
+    '/.agents/skills/maxime-*/' \
+    '/.agents/MAXIME_VERSION'
 fi

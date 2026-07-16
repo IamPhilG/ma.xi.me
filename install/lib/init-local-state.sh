@@ -71,6 +71,15 @@ EOF
   [ -f "$dead_ends_path" ] || printf '# Dead Ends\n' > "$dead_ends_path"
   [ -f "$kb_index_path" ] || printf '[]' > "$kb_index_path"
 
+  local network_policy_path="$state_root/tools/kb-network-policy.json"
+  if [ ! -f "$network_policy_path" ]; then
+    # Fail-safe default: never assume network write access. Read defaults to
+    # true (most environments have outbound read access; air-gapped is the
+    # exception, not the norm) -- maxime-init overwrites both once the
+    # question is actually asked. See decisions-log 2026-07-16.
+    printf '{"network_read": true, "network_write": false}' > "$network_policy_path"
+  fi
+
   local tools_source="$src_repo_root/core/tools"
   local tools_backup_dir="$repo_root/.bkp/maxime-tools/$stamp"
   for tool_name in cleanup-wip.ps1 cleanup-wip.sh; do

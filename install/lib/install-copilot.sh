@@ -71,6 +71,13 @@ install_copilot_workspace() {
 
   run cp -f "$copilot_src/copilot-instructions.md" "$instructions_target"
 
+  local src_version="$src_repo_root/install/Packaged/VERSION"
+  if [ -f "$src_version" ]; then
+    local version_target="$repo_root/.github/MAXIME_VERSION"
+    backup_if_exists "$version_target" "$backup_dir"
+    run cp -f "$src_version" "$version_target"
+  fi
+
   if [ "$dry" = 0 ]; then
     echo -e "\033[32mmA.xI.me installe pour Copilot (workspace).\033[0m"
     echo "Repo cible: $repo_root"
@@ -85,8 +92,10 @@ install_copilot_workspace
 if [ "$shared" != 1 ]; then
   add_git_exclude_entries "$repo_root" \
     '/.github/copilot-instructions.md' \
-    '/.github/agents/maxime*.agent.md'
+    '/.github/agents/maxime*.agent.md' \
+    '/.github/MAXIME_VERSION'
   add_gitignore_entries "$repo_root" '# mA.xI.me -- GitHub Copilot (outil installe, pas du code source)' \
     '/.github/copilot-instructions.md' \
-    '/.github/agents/maxime*.agent.md'
+    '/.github/agents/maxime*.agent.md' \
+    '/.github/MAXIME_VERSION'
 fi
