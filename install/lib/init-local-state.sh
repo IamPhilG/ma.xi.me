@@ -42,13 +42,13 @@ initialize_maxime_local_state() {
   local kb_index_path="$state_root/kb/index.json"
 
   if [ "$dry" = 1 ]; then
-    echo "[dry-run] mkdir -p $state_root/{memory,specs,adr,results,kb,kb/active,kb/archived,tools} $repo_root/.bkp"
+    echo "[dry-run] mkdir -p $state_root/{memory,specs,adr,results,kb,kb/active,kb/archived,tmp,tools} $repo_root/.bkp"
     echo "[dry-run] copy cleanup-wip.ps1 and cleanup-wip.sh into $state_root/tools"
     echo "[dry-run] add /.wip/ and /.bkp/ to the target repo's Git local exclude file"
     return
   fi
 
-  mkdir -p "$state_root/memory" "$state_root/specs" "$state_root/adr" "$state_root/results" "$state_root/kb" "$state_root/kb/active" "$state_root/kb/archived" "$state_root/tools" "$repo_root/.bkp"
+  mkdir -p "$state_root/memory" "$state_root/specs" "$state_root/adr" "$state_root/results" "$state_root/kb" "$state_root/kb/active" "$state_root/kb/archived" "$state_root/tmp" "$state_root/tools" "$repo_root/.bkp"
 
   if [ ! -f "$handoff_path" ]; then
     cat > "$handoff_path" <<EOF

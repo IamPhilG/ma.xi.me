@@ -490,6 +490,111 @@ try {
         $true
     }
 
+    # Decision (issue #34): no write is allowed outside the target repo, not
+    # just by the installer -- .wip/tmp/ is the sanctioned place for
+    # ephemeral files, and 3 hooks enforce path-containment for the tools
+    # that can write: Bash, PowerShell (verified empirically that Claude
+    # Code hooks CAN intercept the PowerShell tool), and
+    # Write/Edit/NotebookEdit (the reliable check -- exact file_path, no
+    # command string to guess at). Functional checks pipe real payloads
+    # through each hook and assert the actual allow/deny decision.
+    Test-Decision 'aucune ecriture hors du repo -- .wip/tmp/ + 3 hooks path-aware (issue #34)' {
+        $fixture = Join-Path $tempRoot 'fixture-no-outside-write'
+        New-Item -ItemType Directory -Path $fixture | Out-Null
+        Push-Location $fixture
+        try { git init -q } finally { Pop-Location }
+        # Re-resolve to whatever form git normalizes to -- the hooks resolve
+        # repo_root the same way, so the fixture path used in every payload
+        # below must match that exact representation.
+        $fixture = (& git -C $fixture rev-parse --show-toplevel).Trim()
+
+        & (Join-Path $repositoryRoot 'install\install.ps1') -Target claude -WorkspaceRoot $fixture | Out-Null
+
+        if (!(Test-Path (Join-Path $fixture '.wip\tmp'))) {
+            throw '.wip/tmp/ non cree a l''installation fraiche.'
+        }
+
+        $hooksDir = Join-Path $fixture '.claude\hooks'
+        foreach ($f in @('lib-path-guard.sh', 'block-destructive-bash.sh', 'block-destructive-powershell.sh', 'block-outside-repo-write.sh')) {
+            if (!(Test-Path (Join-Path $hooksDir $f))) {
+                throw "$f manquant dans .claude/hooks/ apres installation."
+            }
+        }
+
+        $settingsContent = Get-Content -Raw -Path (Join-Path $fixture '.claude\settings.json')
+        if ($settingsContent -notmatch '"matcher": "PowerShell"') {
+            throw '.claude/settings.json ne declare pas de hook pour l''outil PowerShell.'
+        }
+        if ($settingsContent -notmatch '"matcher": "Write\|Edit\|NotebookEdit"') {
+            throw '.claude/settings.json ne declare pas de hook pour Write/Edit/NotebookEdit.'
+        }
+
+        # Claude Code's own hook runner resolves "bash" to git-bash (that's
+        # what the in-session, end-to-end hook tests exercised and confirmed
+        # working). A plain PATH lookup in a standalone PowerShell process is
+        # not the same thing: on a machine with WSL installed, "bash" on
+        # PATH can resolve to C:\Windows\system32\bash.exe (the WSL
+        # launcher, mounting C:\ at /mnt/c and unable to parse Windows-style
+        # paths at all) instead of git-bash. Resolve git-bash explicitly so
+        # this test exercises the same interpreter production uses.
+        $gitBash = Join-Path (Split-Path (Split-Path (Get-Command git.exe -ErrorAction Stop).Source -Parent) -Parent) 'bin\bash.exe'
+        if (!(Test-Path $gitBash)) {
+            throw "git-bash introuvable a l'emplacement attendu ($gitBash) -- impossible de tester fonctionnellement les hooks depuis ce checker."
+        }
+
+        $outsideDir = Join-Path ([System.IO.Path]::GetTempPath()) ([Guid]::NewGuid())
+        New-Item -ItemType Directory -Path $outsideDir | Out-Null
+        # JSON string literals can't contain a bare backslash -- forward
+        # slashes are valid on Windows and the hooks normalize them anyway.
+        $outsideDirJson = $outsideDir -replace '\\', '/'
+        $payload = Join-Path $tempRoot 'hook-payload.json'
+
+        function Invoke-Hook {
+            param([string]$Script, [string]$Json)
+            Set-Content -Path $payload -Value $Json -Encoding UTF8 -NoNewline
+            # git-bash's argv handling mangles backslashes in a plain path
+            # argument (they're consumed as escape characters) -- pass the
+            # script path with forward slashes instead.
+            $bashScript = $Script -replace '\\', '/'
+            $out = Get-Content -Raw -Path $payload | & $gitBash $bashScript
+            return $out
+        }
+
+        $writeHook = Join-Path $hooksDir 'block-outside-repo-write.sh'
+        $out = Invoke-Hook -Script $writeHook -Json ("{`"cwd`":`"$fixture`",`"tool_input`":{`"file_path`":`"$outsideDirJson/outside.txt`",`"content`":`"x`"}}")
+        if ([string]::IsNullOrEmpty($out)) {
+            throw 'block-outside-repo-write.sh laisse passer une ecriture hors repo (Write/Edit).'
+        }
+
+        $out = Invoke-Hook -Script $writeHook -Json ("{`"cwd`":`"$fixture`",`"tool_input`":{`"file_path`":`"$fixture/.wip/tmp/inside.txt`",`"content`":`"x`"}}")
+        if (-not [string]::IsNullOrEmpty($out)) {
+            throw 'block-outside-repo-write.sh bloque une ecriture legitime DANS le repo (.wip/tmp/).'
+        }
+
+        $bashHook = Join-Path $hooksDir 'block-destructive-bash.sh'
+        $out = Invoke-Hook -Script $bashHook -Json ("{`"cwd`":`"$fixture`",`"tool_input`":{`"command`":`"echo hello > $outsideDirJson/outside.txt`"}}")
+        if ([string]::IsNullOrEmpty($out)) {
+            throw 'block-destructive-bash.sh laisse passer une redirection vers un chemin absolu hors repo.'
+        }
+
+        $out = Invoke-Hook -Script $bashHook -Json ("{`"cwd`":`"$fixture`",`"tool_input`":{`"command`":`"echo hello > .wip/tmp/inside.txt`"}}")
+        if (-not [string]::IsNullOrEmpty($out)) {
+            throw 'block-destructive-bash.sh bloque une redirection relative legitime DANS le repo (regression du faux positif issue #27).'
+        }
+
+        # Forward slashes are a valid Windows path form and sidestep JSON
+        # backslash-escaping entirely -- the hook only pattern-matches the
+        # command text, it never executes it, so this is a faithful test.
+        $psHook = Join-Path $hooksDir 'block-destructive-powershell.sh'
+        $out = Invoke-Hook -Script $psHook -Json ("{`"cwd`":`"$fixture`",`"tool_input`":{`"command`":`"Set-Content -Path \`"$outsideDirJson/outside.txt\`" -Value hello`"}}")
+        if ([string]::IsNullOrEmpty($out)) {
+            throw 'block-destructive-powershell.sh laisse passer une ecriture vers un chemin absolu entre guillemets hors repo.'
+        }
+
+        Remove-Item -Path $outsideDir -Recurse -Force -ErrorAction SilentlyContinue
+        $true
+    }
+
     # Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
     # .git/info/exclude AND to .gitignore -- the whole install stays local via exclude,
     # and .gitignore documents/enforces the same patterns so the tool is never

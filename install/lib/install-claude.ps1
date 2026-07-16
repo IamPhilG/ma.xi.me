@@ -112,6 +112,9 @@ $claudeExcludeEntries = @(
     '/.claude/agents/maxime*.md',
     '/.claude/skills/maxime-*/',
     '/.claude/hooks/block-destructive-bash.sh',
+    '/.claude/hooks/block-destructive-powershell.sh',
+    '/.claude/hooks/block-outside-repo-write.sh',
+    '/.claude/hooks/lib-path-guard.sh',
     '/.claude/settings.json',
     '/.claude/MAXIME_VERSION'
 )

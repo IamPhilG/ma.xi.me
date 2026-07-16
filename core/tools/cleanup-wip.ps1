@@ -8,6 +8,7 @@ param(
     [int]$RetainToolsDays = 14,
     [int]$RetainTestsDays = 30,
     [int]$RetainKbArchivedDays = 90,
+    [int]$RetainTmpDays = 1,
     [switch]$NoReport
 )
 
@@ -90,6 +91,7 @@ $toolsRoot = Join-Path $wipRoot 'tools'
 $testsRoot = Join-Path $wipRoot 'tests'
 $kbArchivedRoot = Join-Path $wipRoot 'kb\archived'
 $kbIndexPath = Join-Path $wipRoot 'kb\index.json'
+$tmpRoot = Join-Path $wipRoot 'tmp'
 
 $candidates = New-Object 'System.Collections.Generic.List[object]'
 
@@ -110,6 +112,10 @@ Get-AgeCandidates -Directory $testsRoot -RetainDays $RetainTestsDays -WipRoot $w
 # never auto-deleted by age, only flagged for revalidation via ttl_days
 # (maxime-kb rule 9). A fiche must be explicitly archived first.
 Get-AgeCandidates -Directory $kbArchivedRoot -RetainDays $RetainKbArchivedDays -WipRoot $wipRoot -List $candidates
+# .wip/tmp/ is for genuinely ephemeral work only (see core/socle.md: never
+# write outside the target repo, use .wip/tmp/ instead) -- short default
+# retention, nothing there is meant to survive long.
+Get-AgeCandidates -Directory $tmpRoot -RetainDays $RetainTmpDays -WipRoot $wipRoot -List $candidates
 Get-AgeCandidates -Directory $toolsRoot -RetainDays $RetainToolsDays -WipRoot $wipRoot -List $candidates -ExcludeNames @(
     'cleanup-wip.ps1',
     'cleanup-wip.sh',
@@ -162,7 +168,7 @@ if ($Apply.IsPresent) {
         }
     }
 
-    foreach ($dir in @($specsRoot, $resultsRoot, $testsRoot, $toolsRoot, $memoryRoot, $kbArchivedRoot)) {
+    foreach ($dir in @($specsRoot, $resultsRoot, $testsRoot, $toolsRoot, $memoryRoot, $kbArchivedRoot, $tmpRoot)) {
         if (!(Test-Path $dir)) { continue }
         Get-ChildItem -Path $dir -Directory -Recurse |
             Sort-Object FullName -Descending |
@@ -193,7 +199,7 @@ if (-not $NoReport.IsPresent) {
     $lines.Add("- Repo root: $repoRoot")
     $lines.Add("- WIP root: $wipRoot")
     $lines.Add("- Keep handoffs: $KeepHandoffs")
-    $lines.Add("- Retention days: specs=$RetainSpecsDays results=$RetainResultsDays tools=$RetainToolsDays tests=$RetainTestsDays kb-archived=$RetainKbArchivedDays")
+    $lines.Add("- Retention days: specs=$RetainSpecsDays results=$RetainResultsDays tools=$RetainToolsDays tests=$RetainTestsDays kb-archived=$RetainKbArchivedDays tmp=$RetainTmpDays")
     $lines.Add('')
     $lines.Add('## Candidates')
 
