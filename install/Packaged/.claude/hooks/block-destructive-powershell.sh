@@ -36,10 +36,13 @@ hard_deny+='|git[[:space:]]+checkout[[:space:]]+--([[:space:]]|$)'
 hard_deny+='|git[[:space:]]+checkout[[:space:]]+\.([[:space:]]|$)'
 hard_deny+='|git[[:space:]]+branch[[:space:]]+(-D|--delete[[:space:]]+--force)'
 hard_deny+='|git[[:space:]]+add[[:space:]]+(-A|--all)([[:space:]]|$)'
-hard_deny+='|git[[:space:]]+(checkout|switch)[[:space:]]+(main|master)([[:space:]]|$)'
 
 soft_ask='git[[:space:]]+push[[:space:]]+[^|;`]*(--force\b|-f\b|--force-with-lease)'
 soft_ask+='|git[[:space:]]+push[[:space:]]+[^|;`]*--delete'
+
+# Bascule vers une branche protegee : voir block-destructive-bash.sh (meme
+# raisonnement, assoupli le 2026-07-17) -- ASK, pas DENY.
+soft_ask_branch='git[[:space:]]+(checkout|switch)[[:space:]]+(main|master)([[:space:]]|$)'
 
 if echo "$cmd" | grep -qE "$hard_deny"; then
   jq -n --arg reason "Commande destructrice/irreversible bloquee par garde-fou repo (PowerShell): $cmd" \
@@ -49,6 +52,12 @@ fi
 
 if echo "$cmd" | grep -qE "$soft_ask"; then
   jq -n --arg reason "Commande a risque (push force/delete) -- confirmation requise: $cmd" \
+    '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"ask",permissionDecisionReason:$reason}}'
+  exit 0
+fi
+
+if echo "$cmd" | grep -qE "$soft_ask_branch"; then
+  jq -n --arg reason "Bascule vers une branche protegee (main/master) -- est-ce bien toi qui acceptes ce checkout ? $cmd" \
     '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"ask",permissionDecisionReason:$reason}}'
   exit 0
 fi

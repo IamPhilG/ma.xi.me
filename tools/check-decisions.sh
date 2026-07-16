@@ -609,6 +609,62 @@ check_no_writes_outside_repo() {
   pass "$name"
 }
 
+# Decision (2026-07-17): switching to main/master (git checkout|switch main)
+# used to be a hard DENY in both destructive-command hooks -- too strict, it
+# blocked a routine, safe post-merge sync just as hard as an actual direct
+# commit on main. Softened to ASK: a human must still confirm, but it is no
+# longer an unconditional block. Regression-checked alongside: the other
+# hard_deny patterns (checkout --, checkout ., branch -D, reset --hard) stay
+# DENY, unaffected by this change.
+check_checkout_main_is_ask_not_deny() {
+  local name="bascule vers main/master assouplie de deny vers ask, sans affaiblir les autres hard_deny"
+  local fixture="$temp_root/fixture-checkout-main-ask"
+  mkdir -p "$fixture"
+  (cd "$fixture" && git init -q)
+  fixture="$(git -C "$fixture" rev-parse --show-toplevel)"
+
+  if ! bash "$repository_root/install/install.sh" --target claude --workspace-root "$fixture" >/dev/null; then
+    fail "$name" "Installation a echoue."
+    return
+  fi
+
+  local hooks_dir="$fixture/.claude/hooks"
+  local payload out
+
+  payload="$(mktemp)"
+  printf '{"cwd":"%s","tool_input":{"command":"git checkout main"}}' "$fixture" > "$payload"
+  out="$(bash "$hooks_dir/block-destructive-bash.sh" < "$payload")"
+  if [ -z "$out" ]; then
+    fail "$name" "block-destructive-bash.sh laisse passer 'git checkout main' sans aucune confirmation."
+    rm -f "$payload"
+    return
+  fi
+  if [ "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision // empty')" != "ask" ]; then
+    fail "$name" "'git checkout main' n'est pas traite en ask par block-destructive-bash.sh: $out"
+    rm -f "$payload"
+    return
+  fi
+
+  printf '{"cwd":"%s","tool_input":{"command":"git switch master"}}' "$fixture" > "$payload"
+  out="$(bash "$hooks_dir/block-destructive-powershell.sh" < "$payload")"
+  if [ "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision // empty')" != "ask" ]; then
+    fail "$name" "'git switch master' n'est pas traite en ask par block-destructive-powershell.sh: $out"
+    rm -f "$payload"
+    return
+  fi
+
+  printf '{"cwd":"%s","tool_input":{"command":"git checkout -- ."}}' "$fixture" > "$payload"
+  out="$(bash "$hooks_dir/block-destructive-bash.sh" < "$payload")"
+  if [ "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision // empty')" != "deny" ]; then
+    fail "$name" "regression: 'git checkout -- .' n'est plus un deny dur (devrait etre inchange par cet assouplissement)."
+    rm -f "$payload"
+    return
+  fi
+
+  rm -f "$payload"
+  pass "$name"
+}
+
 # Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
 # .git/info/exclude AND to .gitignore -- the whole install stays local via exclude,
 # and .gitignore documents/enforces the same patterns so the tool is never
@@ -774,6 +830,7 @@ check_kb_submodule_push_mechanics
 check_kb_cleanup_without_archived
 check_preserve_project_content
 check_no_writes_outside_repo
+check_checkout_main_is_ask_not_deny
 check_local_by_default
 check_standalone_lib_script
 check_workflow_agent_scoping

@@ -46,11 +46,16 @@ hard_deny+='|git[[:space:]]+checkout[[:space:]]+--([[:space:]]|$)'
 hard_deny+='|git[[:space:]]+checkout[[:space:]]+\.([[:space:]]|$)'
 hard_deny+='|git[[:space:]]+branch[[:space:]]+(-D|--delete[[:space:]]+--force)'
 hard_deny+='|git[[:space:]]+add[[:space:]]+(-A|--all)([[:space:]]|$)'
-hard_deny+='|git[[:space:]]+(checkout|switch)[[:space:]]+(main|master)([[:space:]]|$)'
 
 # Risqué mais parfois légitime en interactif → ASK (force un prompt humain)
 soft_ask='git[[:space:]]+push[[:space:]]+[^|;&]*(--force\b|-f\b|--force-with-lease)'
 soft_ask+='|git[[:space:]]+push[[:space:]]+[^|;&]*--delete'
+
+# Bascule vers une branche protegee : pas irreversible en soi (contrairement au
+# reste de hard_deny), mais un checkout/switch vers main/master en autonomie
+# est le genre de decision qu'un humain doit valider explicitement -- ASK,
+# pas DENY (assoupli le 2026-07-17, decision initiale trop stricte).
+soft_ask_branch='git[[:space:]]+(checkout|switch)[[:space:]]+(main|master)([[:space:]]|$)'
 
 if echo "$cmd" | grep -qE "$hard_deny"; then
   jq -n --arg reason "Commande destructrice/irréversible bloquée par garde-fou repo: $cmd" \
@@ -60,6 +65,12 @@ fi
 
 if echo "$cmd" | grep -qE "$soft_ask"; then
   jq -n --arg reason "Commande à risque (push force/delete) — confirmation requise: $cmd" \
+    '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"ask",permissionDecisionReason:$reason}}'
+  exit 0
+fi
+
+if echo "$cmd" | grep -qE "$soft_ask_branch"; then
+  jq -n --arg reason "Bascule vers une branche protegee (main/master) — est-ce bien toi qui acceptes ce checkout ? $cmd" \
     '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"ask",permissionDecisionReason:$reason}}'
   exit 0
 fi
