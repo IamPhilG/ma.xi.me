@@ -2,6 +2,122 @@
 # Helpers partages par les scripts install/lib/*.sh. Source uniquement,
 # jamais execute directement.
 
+# Present in the header of every file generate-adapters.* produces -- used to
+# tell "this is our own prior output" apart from "the target repo already had
+# its own project-specific file before mA.xI.me was installed" (issue #27).
+MAXIME_GENERATED_MARKER='Generated from `core/socle.md`. Do not edit directly.'
+
+# save_pre_existing_project_content <target_path> <preserve_destination> [preserve_header]
+# Before a generated file overwrites target_path, checks whether it already
+# exists and is NOT one of mA.xI.me's own prior outputs. If so, moves its
+# content to preserve_destination (created once, never touched again on
+# later installs). Returns 0 (true) if content was preserved this way.
+save_pre_existing_project_content() {
+  local target_path="$1"
+  local preserve_destination="$2"
+  local preserve_header="${3:-}"
+  [ -f "$target_path" ] || return 1
+  [ -f "$preserve_destination" ] && return 1
+  grep -qF "$MAXIME_GENERATED_MARKER" "$target_path" && return 1
+
+  mkdir -p "$(dirname "$preserve_destination")"
+  if [ -n "$preserve_header" ]; then
+    { printf '%s' "$preserve_header"; cat "$target_path"; } > "$preserve_destination"
+  else
+    cp -f "$target_path" "$preserve_destination"
+  fi
+  return 0
+}
+
+# merge_maxime_managed_block <target_path> <generated_content_file>
+# For hosts with no confirmed native import/merge mechanism (Codex/AGENTS.md
+# -- the override-file semantics found in research were ambiguous, "at most
+# one file used per directory" suggests replace, not merge). Writes the
+# generated content inside an explicit marker block instead of overwriting
+# target_path wholesale: no pre-existing file -> block alone; pre-existing
+# managed block -> replace only that block; old-style fully-generated file
+# (has the marker, no block yet) -> replace wholesale, nothing to lose;
+# real project content never touched before -> append the block, preserve
+# everything. Prints "mixed" (managed + non-managed content coexist -- caller
+# should skip default git-exclude for that file) or "clean" to stdout.
+merge_maxime_managed_block() {
+  local target_path="$1"
+  local generated_content_file="$2"
+  local begin_marker='<!-- BEGIN mA.xI.me generated -->'
+  local end_marker='<!-- END mA.xI.me generated -->'
+
+  local block_file
+  block_file="$(mktemp)"
+  { echo "$begin_marker"; cat "$generated_content_file"; echo "$end_marker"; } > "$block_file"
+
+  if [ ! -f "$target_path" ]; then
+    cp "$block_file" "$target_path"
+    rm -f "$block_file"
+    echo "clean"
+    return
+  fi
+
+  if grep -qF "$begin_marker" "$target_path" && grep -qF "$end_marker" "$target_path"; then
+    local outside
+    outside="$(awk -v b="$begin_marker" -v e="$end_marker" 'index($0,b){inblock=1;next} index($0,e){inblock=0;next} !inblock' "$target_path")"
+    awk -v b="$begin_marker" -v e="$end_marker" -v blockfile="$block_file" '
+      index($0,b){
+        while ((getline line < blockfile) > 0) print line
+        close(blockfile)
+        inblock=1
+        next
+      }
+      index($0,e){ inblock=0; next }
+      !inblock{ print }
+    ' "$target_path" > "$target_path.tmp"
+    mv "$target_path.tmp" "$target_path"
+    rm -f "$block_file"
+    if [ -n "$(printf '%s' "$outside" | tr -d '[:space:]')" ]; then
+      echo "mixed"
+    else
+      echo "clean"
+    fi
+    return
+  fi
+
+  if grep -qF "$MAXIME_GENERATED_MARKER" "$target_path"; then
+    cp "$block_file" "$target_path"
+    rm -f "$block_file"
+    echo "clean"
+    return
+  fi
+
+  { cat "$target_path"; echo; cat "$block_file"; } > "$target_path.tmp"
+  mv "$target_path.tmp" "$target_path"
+  rm -f "$block_file"
+  echo "mixed"
+}
+
+# remove_maxime_managed_block <target_path>
+# Mirror of merge_maxime_managed_block for uninstall. If target_path
+# contains an explicit marker block, removes ONLY that block, leaving any
+# surrounding project content untouched (deletes the file entirely if
+# nothing remains), and returns 0 (true). If no marker block is found, does
+# nothing and returns 1 (false) -- caller falls back to its normal
+# whole-file removal.
+remove_maxime_managed_block() {
+  local target_path="$1"
+  local begin_marker='<!-- BEGIN mA.xI.me generated -->'
+  local end_marker='<!-- END mA.xI.me generated -->'
+  [ -f "$target_path" ] || return 1
+  grep -qF "$begin_marker" "$target_path" || return 1
+  grep -qF "$end_marker" "$target_path" || return 1
+
+  local outside
+  outside="$(awk -v b="$begin_marker" -v e="$end_marker" 'index($0,b){inblock=1;next} index($0,e){inblock=0;next} !inblock' "$target_path")"
+  if [ -z "$(printf '%s' "$outside" | tr -d '[:space:]')" ]; then
+    rm -f "$target_path"
+  else
+    printf '%s\n' "$outside" > "$target_path"
+  fi
+  return 0
+}
+
 backup_if_exists() {
   local src_path="$1"
   local backup_dir="$2"
@@ -124,7 +240,7 @@ add_gitignore_entries() {
   for entry in "$@"; do
     grep -Fxq "$entry" "$gitignore_path" || missing=1
   done
-  [ "$missing" -eq 1 ] || return
+  [ "$missing" -eq 1 ] || return 0
   [ -s "$gitignore_path" ] && printf '\n' >> "$gitignore_path"
   grep -Fxq "$header" "$gitignore_path" || printf '%s\n' "$header" >> "$gitignore_path"
   for entry in "$@"; do

@@ -378,6 +378,99 @@ try {
         $true
     }
 
+    # Decision: pre-existing project-specific CLAUDE.md / copilot-instructions.md
+    # / AGENTS.md content is never silently overwritten (issue #27). Claude and
+    # Copilot: moved once into a companion file the host merges natively
+    # (.claude/rules/, .github/instructions/). Codex: merged in place inside an
+    # explicit marker block (no confirmed native merge mechanism). A repo whose
+    # AGENTS.md now mixes project + generated content is not added to the
+    # default git-exclude list for that file -- it is no longer purely tool-owned.
+    Test-Decision 'contenu projet pre-existant preserve, jamais ecrase (issue #27)' {
+        $fixture = Join-Path $tempRoot 'fixture-preserve-project'
+        New-Item -ItemType Directory -Path $fixture | Out-Null
+        Push-Location $fixture
+        try { git init -q } finally { Pop-Location }
+
+        $projectClaudeMarker = 'PROJET: convention Claude specifique a ce repo, jamais generee par un outil.'
+        $projectCopilotMarker = 'PROJET: convention Copilot specifique a ce repo, jamais generee par un outil.'
+        $projectAgentsMarker = 'PROJET: convention Codex specifique a ce repo, jamais generee par un outil.'
+        Set-Content -Path (Join-Path $fixture 'CLAUDE.md') -Value $projectClaudeMarker -Encoding UTF8
+        New-Item -ItemType Directory -Force -Path (Join-Path $fixture '.github') | Out-Null
+        Set-Content -Path (Join-Path $fixture '.github\copilot-instructions.md') -Value $projectCopilotMarker -Encoding UTF8
+        Set-Content -Path (Join-Path $fixture 'AGENTS.md') -Value $projectAgentsMarker -Encoding UTF8
+
+        & (Join-Path $repositoryRoot 'install\install.ps1') -Target all -WorkspaceRoot $fixture | Out-Null
+
+        $rulesFile = Join-Path $fixture '.claude\rules\project-conventions.md'
+        if (!(Test-Path $rulesFile)) { throw '.claude/rules/project-conventions.md non cree.' }
+        if (-not (Get-Content -Raw -Path $rulesFile).Contains($projectClaudeMarker)) {
+            throw 'Contenu CLAUDE.md pre-existant absent de .claude/rules/project-conventions.md.'
+        }
+        $claudeMdContent = Get-Content -Raw -Path (Join-Path $fixture 'CLAUDE.md')
+        if ($claudeMdContent -notmatch 'Generated from') {
+            throw 'CLAUDE.md ne contient pas le contenu genere apres installation.'
+        }
+
+        $instrFile = Join-Path $fixture '.github\instructions\project-conventions.instructions.md'
+        if (!(Test-Path $instrFile)) { throw '.github/instructions/project-conventions.instructions.md non cree.' }
+        $instrContent = Get-Content -Raw -Path $instrFile
+        if (-not $instrContent.Contains($projectCopilotMarker)) {
+            throw 'Contenu copilot-instructions.md pre-existant absent du fichier instructions preserve.'
+        }
+        if ($instrContent -notmatch 'applyTo:\s*"\*\*"') {
+            throw 'Frontmatter applyTo manquant dans le fichier instructions preserve.'
+        }
+
+        $agentsContent = Get-Content -Raw -Path (Join-Path $fixture 'AGENTS.md')
+        if (-not $agentsContent.Contains($projectAgentsMarker)) {
+            throw 'Contenu AGENTS.md pre-existant perdu apres installation (devrait etre fusionne, pas ecrase).'
+        }
+        if ($agentsContent -notmatch 'Generated from') {
+            throw 'AGENTS.md ne contient pas le contenu genere apres installation.'
+        }
+        if ($agentsContent -notmatch '<!-- BEGIN mA\.xI\.me generated -->') {
+            throw 'Bloc delimite mA.xI.me absent de AGENTS.md.'
+        }
+
+        $excludePath = (& git -C $fixture rev-parse --git-path info/exclude).Trim()
+        if (![System.IO.Path]::IsPathRooted($excludePath)) { $excludePath = Join-Path $fixture $excludePath }
+        $excludeContent = Get-Content -Path $excludePath
+        if ($excludeContent -contains '/AGENTS.md') {
+            throw 'AGENTS.md ne devrait pas etre exclu par defaut une fois melange a du contenu projet.'
+        }
+        if ($excludeContent -notcontains '/CLAUDE.md') {
+            throw 'CLAUDE.md devrait rester exclu par defaut (redevenu propre apres preservation du contenu projet).'
+        }
+
+        # Reinstall: idempotent, no duplication of the preserved companion
+        # files or of the managed block inside AGENTS.md.
+        & (Join-Path $repositoryRoot 'install\install.ps1') -Target all -WorkspaceRoot $fixture | Out-Null
+        $agentsContentAfterReinstall = Get-Content -Raw -Path (Join-Path $fixture 'AGENTS.md')
+        $blockCount = ([regex]::Matches($agentsContentAfterReinstall, [regex]::Escape('<!-- BEGIN mA.xI.me generated -->'))).Count
+        if ($blockCount -ne 1) {
+            throw "Reinstallation a duplique le bloc gere dans AGENTS.md (trouve $blockCount fois, attendu 1)."
+        }
+        if (-not $agentsContentAfterReinstall.Contains($projectAgentsMarker)) {
+            throw 'Reinstallation a perdu le contenu projet dans AGENTS.md.'
+        }
+
+        # Uninstall: the managed block is stripped, project content in
+        # AGENTS.md survives (never a full-file delete for a mixed file).
+        & (Join-Path $repositoryRoot 'install\uninstall.ps1') -Target codex -WorkspaceRoot $fixture | Out-Null
+        $agentsPath = Join-Path $fixture 'AGENTS.md'
+        if (!(Test-Path $agentsPath)) {
+            throw 'uninstall a supprime AGENTS.md entierement alors qu''il contenait du contenu projet.'
+        }
+        $agentsAfterUninstall = Get-Content -Raw -Path $agentsPath
+        if (-not $agentsAfterUninstall.Contains($projectAgentsMarker)) {
+            throw 'uninstall a perdu le contenu projet dans AGENTS.md.'
+        }
+        if ($agentsAfterUninstall -match '<!-- BEGIN mA\.xI\.me generated -->') {
+            throw 'uninstall n''a pas retire le bloc gere de AGENTS.md.'
+        }
+        $true
+    }
+
     # Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
     # .git/info/exclude AND to .gitignore -- the whole install stays local via exclude,
     # and .gitignore documents/enforces the same patterns so the tool is never

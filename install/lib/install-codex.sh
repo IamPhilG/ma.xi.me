@@ -34,6 +34,7 @@ src_repo_root="$(dirname "$(dirname "$script_dir")")"
 . "$script_dir/common.sh"
 
 stamp="$(date +%Y%m%d-%H%M%S)"
+codex_agents_mixed=0
 
 install_codex_workspace() {
   local codex_source="$src_repo_root/install/Packaged/.codex/AGENTS.md"
@@ -63,8 +64,23 @@ install_codex_workspace() {
 
   run mkdir -p "$skills_target_root"
 
+  # No confirmed native import/merge mechanism for AGENTS.md (issue #27): the
+  # override-file semantics found in research were ambiguous ("at most one
+  # file used per directory" suggests replace, not merge). Instead of
+  # overwriting AGENTS.md wholesale, splice the generated content into an
+  # explicit marker block, preserving any pre-existing project content
+  # around it.
   backup_if_exists "$agents_target" "$backup_dir"
-  run cp -f "$codex_source" "$agents_target"
+  if [ "$dry" = 0 ]; then
+    local merge_result
+    merge_result="$(merge_maxime_managed_block "$agents_target" "$codex_source")"
+    if [ "$merge_result" = "mixed" ]; then
+      codex_agents_mixed=1
+      echo "AGENTS.md contient du contenu projet pre-existant -- fusionne avec le contenu genere via un bloc delimite, jamais ecrase entierement."
+    fi
+  else
+    echo "[dry-run] merge generated content into $agents_target (preserving any pre-existing project content)"
+  fi
 
   local has_skill=0
   for d in "$skills_source_root"/maxime*; do
@@ -93,12 +109,14 @@ install_codex_workspace() {
 install_codex_workspace
 
 if [ "$shared" != 1 ]; then
-  add_git_exclude_entries "$repo_root" \
-    '/AGENTS.md' \
-    '/.agents/skills/maxime-*/' \
-    '/.agents/MAXIME_VERSION'
-  add_gitignore_entries "$repo_root" '# mA.xI.me -- Codex (outil installe, pas du code source)' \
-    '/AGENTS.md' \
-    '/.agents/skills/maxime-*/' \
-    '/.agents/MAXIME_VERSION'
+  # AGENTS.md is excluded by default only when it's purely tool-owned. Once
+  # it mixes in real project content (issue #27 merge), it is no longer ours
+  # alone to exclude -- the project content it now carries deserves the same
+  # git treatment it would have had before mA.xI.me touched it.
+  codex_exclude_entries=('/.agents/skills/maxime-*/' '/.agents/MAXIME_VERSION')
+  if [ "$codex_agents_mixed" != 1 ]; then
+    codex_exclude_entries=('/AGENTS.md' "${codex_exclude_entries[@]}")
+  fi
+  add_git_exclude_entries "$repo_root" "${codex_exclude_entries[@]}"
+  add_gitignore_entries "$repo_root" '# mA.xI.me -- Codex (outil installe, pas du code source)' "${codex_exclude_entries[@]}"
 fi

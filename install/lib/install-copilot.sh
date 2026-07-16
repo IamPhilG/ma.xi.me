@@ -50,6 +50,17 @@ install_copilot_workspace() {
 
   run mkdir -p "$agents_target"
 
+  # Preserve pre-existing project-specific copilot-instructions.md content
+  # instead of silently overwriting it (issue #27): move it once into
+  # .github/instructions/, which Copilot merges automatically into context
+  # alongside copilot-instructions.md -- no import syntax needed.
+  local project_conventions_target="$repo_root/.github/instructions/project-conventions.instructions.md"
+  local instructions_header
+  instructions_header="$(printf -- '---\napplyTo: "**"\n---\n\n')"
+  if [ "$dry" = 0 ] && save_pre_existing_project_content "$instructions_target" "$project_conventions_target" "$instructions_header"; then
+    echo "Contenu copilot-instructions.md pre-existant preserve dans $project_conventions_target (fusionne automatiquement par Copilot, jamais touche par mA.xI.me a l'avenir)."
+  fi
+
   backup_if_exists "$instructions_target" "$backup_dir"
 
   for f in "$copilot_src"/agents/*.agent.md; do

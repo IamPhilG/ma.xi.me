@@ -360,6 +360,128 @@ check_kb_cleanup_without_archived() {
   pass "$name"
 }
 
+# Decision: pre-existing project-specific CLAUDE.md / copilot-instructions.md
+# / AGENTS.md content is never silently overwritten (issue #27). Claude and
+# Copilot: moved once into a companion file the host merges natively
+# (.claude/rules/, .github/instructions/). Codex: merged in place inside an
+# explicit marker block (no confirmed native merge mechanism). A repo whose
+# AGENTS.md now mixes project + generated content is not added to the
+# default git-exclude list for that file -- it is no longer purely tool-owned.
+check_preserve_project_content() {
+  local name="contenu projet pre-existant preserve, jamais ecrase (issue #27)"
+  local fixture="$temp_root/fixture-preserve-project"
+  mkdir -p "$fixture"
+  (cd "$fixture" && git init -q)
+
+  local project_claude_marker="PROJET: convention Claude specifique a ce repo, jamais generee par un outil."
+  local project_copilot_marker="PROJET: convention Copilot specifique a ce repo, jamais generee par un outil."
+  local project_agents_marker="PROJET: convention Codex specifique a ce repo, jamais generee par un outil."
+  printf '%s' "$project_claude_marker" > "$fixture/CLAUDE.md"
+  mkdir -p "$fixture/.github"
+  printf '%s' "$project_copilot_marker" > "$fixture/.github/copilot-instructions.md"
+  printf '%s' "$project_agents_marker" > "$fixture/AGENTS.md"
+
+  if ! bash "$repository_root/install/install.sh" --target all --workspace-root "$fixture" >/dev/null; then
+    fail "$name" "Installation a echoue."
+    return
+  fi
+
+  local rules_file="$fixture/.claude/rules/project-conventions.md"
+  if [ ! -f "$rules_file" ]; then
+    fail "$name" ".claude/rules/project-conventions.md non cree."
+    return
+  fi
+  if ! grep -qF "$project_claude_marker" "$rules_file"; then
+    fail "$name" "Contenu CLAUDE.md pre-existant absent de .claude/rules/project-conventions.md."
+    return
+  fi
+  if ! grep -q "Generated from" "$fixture/CLAUDE.md"; then
+    fail "$name" "CLAUDE.md ne contient pas le contenu genere apres installation."
+    return
+  fi
+
+  local instr_file="$fixture/.github/instructions/project-conventions.instructions.md"
+  if [ ! -f "$instr_file" ]; then
+    fail "$name" ".github/instructions/project-conventions.instructions.md non cree."
+    return
+  fi
+  if ! grep -qF "$project_copilot_marker" "$instr_file"; then
+    fail "$name" "Contenu copilot-instructions.md pre-existant absent du fichier instructions preserve."
+    return
+  fi
+  if ! grep -qE 'applyTo:\s*"\*\*"' "$instr_file"; then
+    fail "$name" "Frontmatter applyTo manquant dans le fichier instructions preserve."
+    return
+  fi
+
+  local agents_target="$fixture/AGENTS.md"
+  if ! grep -qF "$project_agents_marker" "$agents_target"; then
+    fail "$name" "Contenu AGENTS.md pre-existant perdu apres installation (devrait etre fusionne, pas ecrase)."
+    return
+  fi
+  if ! grep -q "Generated from" "$agents_target"; then
+    fail "$name" "AGENTS.md ne contient pas le contenu genere apres installation."
+    return
+  fi
+  if ! grep -qF '<!-- BEGIN mA.xI.me generated -->' "$agents_target"; then
+    fail "$name" "Bloc delimite mA.xI.me absent de AGENTS.md."
+    return
+  fi
+
+  local exclude_path
+  exclude_path="$(git -C "$fixture" rev-parse --git-path info/exclude)"
+  case "$exclude_path" in
+    /*) ;;
+    *) exclude_path="$fixture/$exclude_path" ;;
+  esac
+  if grep -qxF '/AGENTS.md' "$exclude_path" 2>/dev/null; then
+    fail "$name" "AGENTS.md ne devrait pas etre exclu par defaut une fois melange a du contenu projet."
+    return
+  fi
+  if ! grep -qxF '/CLAUDE.md' "$exclude_path" 2>/dev/null; then
+    fail "$name" "CLAUDE.md devrait rester exclu par defaut (redevenu propre apres preservation du contenu projet)."
+    return
+  fi
+
+  # Reinstall: idempotent, no duplication of the preserved companion files or
+  # of the managed block inside AGENTS.md.
+  if ! bash "$repository_root/install/install.sh" --target all --workspace-root "$fixture" >/dev/null; then
+    fail "$name" "Reinstallation a echoue."
+    return
+  fi
+  local block_count
+  block_count="$(grep -oF '<!-- BEGIN mA.xI.me generated -->' "$agents_target" | wc -l | tr -d ' ')"
+  if [ "$block_count" != "1" ]; then
+    fail "$name" "Reinstallation a duplique le bloc gere dans AGENTS.md (trouve $block_count fois, attendu 1)."
+    return
+  fi
+  if ! grep -qF "$project_agents_marker" "$agents_target"; then
+    fail "$name" "Reinstallation a perdu le contenu projet dans AGENTS.md."
+    return
+  fi
+
+  # Uninstall: the managed block is stripped, project content in AGENTS.md
+  # survives (never a full-file delete for a mixed file).
+  if ! bash "$repository_root/install/uninstall.sh" --target codex --workspace-root "$fixture" >/dev/null; then
+    fail "$name" "Uninstall a echoue."
+    return
+  fi
+  if [ ! -f "$agents_target" ]; then
+    fail "$name" "uninstall a supprime AGENTS.md entierement alors qu'il contenait du contenu projet."
+    return
+  fi
+  if ! grep -qF "$project_agents_marker" "$agents_target"; then
+    fail "$name" "uninstall a perdu le contenu projet dans AGENTS.md."
+    return
+  fi
+  if grep -qF '<!-- BEGIN mA.xI.me generated -->' "$agents_target"; then
+    fail "$name" "uninstall n'a pas retire le bloc gere de AGENTS.md."
+    return
+  fi
+
+  pass "$name"
+}
+
 # Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
 # .git/info/exclude AND to .gitignore -- the whole install stays local via exclude,
 # and .gitignore documents/enforces the same patterns so the tool is never
@@ -522,6 +644,7 @@ check_fresh_install
 check_kb_json_format
 check_kb_network_policy_and_version
 check_kb_cleanup_without_archived
+check_preserve_project_content
 check_local_by_default
 check_standalone_lib_script
 check_workflow_agent_scoping
