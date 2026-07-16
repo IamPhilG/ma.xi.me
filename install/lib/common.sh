@@ -89,6 +89,26 @@ remove_git_exclude_entries() {
   mv "$tmp" "$exclude_path"
 }
 
+# write_maxime_version_marker <src_repo_root> <target_path> <backup_dir>
+# Computed live at install time, never copied from a committed file: a SHA
+# baked into a generated file is always at least one commit stale (it can't
+# know the commit that carries it). See decisions-log 2026-07-16.
+write_maxime_version_marker() {
+  local src_repo_root="$1"
+  local target_path="$2"
+  local backup_dir="$3"
+  local sha
+  sha="$(git -C "$src_repo_root" rev-parse HEAD 2>/dev/null || true)"
+  if [ -n "$sha" ]; then
+    backup_if_exists "$target_path" "$backup_dir"
+    if [ "$dry" = 1 ]; then
+      echo "[dry-run] write $sha to $target_path"
+    else
+      printf '%s' "$sha" > "$target_path"
+    fi
+  fi
+}
+
 add_gitignore_entries() {
   local repo_root="$1"
   local header="$2"

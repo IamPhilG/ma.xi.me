@@ -63,12 +63,7 @@ function Install-CopilotWorkspace {
 
     Copy-Item (Join-Path $copilotSrc 'copilot-instructions.md') $instructionsTarget -Force
 
-    $srcVersion = Join-Path $srcRepoRoot 'install\Packaged\VERSION'
-    if (Test-Path $srcVersion) {
-        $versionTarget = Join-Path $ghRoot 'MAXIME_VERSION'
-        Backup-IfExists -Path $versionTarget -BackupDir $backupDir
-        Copy-Item $srcVersion $versionTarget -Force
-    }
+    Write-MaximeVersionMarker -SrcRepoRoot $srcRepoRoot -TargetPath (Join-Path $ghRoot 'MAXIME_VERSION') -BackupDir $backupDir
 
     if (-not $WhatIfPreference) {
         Write-Host "mA.xI.me installe pour Copilot (workspace)." -ForegroundColor Green

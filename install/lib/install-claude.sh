@@ -41,7 +41,6 @@ install_claude_workspace() {
   local src_skills="$src_repo_root/install/Packaged/skills"
   local src_settings="$src_repo_root/install/Packaged/.claude/settings.json"
   local src_hooks="$src_repo_root/install/Packaged/.claude/hooks"
-  local src_version="$src_repo_root/install/Packaged/VERSION"
 
   if [ ! -f "$src_claude_md" ]; then
     echo "Missing source file: $src_claude_md" >&2
@@ -70,11 +69,7 @@ install_claude_workspace() {
     run cp -f "$src_settings" "$settings_target"
   fi
 
-  if [ -f "$src_version" ]; then
-    local version_target="$claude_root/MAXIME_VERSION"
-    backup_if_exists "$version_target" "$backup_dir"
-    run cp -f "$src_version" "$version_target"
-  fi
+  write_maxime_version_marker "$src_repo_root" "$claude_root/MAXIME_VERSION" "$backup_dir"
 
   if [ -d "$src_hooks" ]; then
     for f in "$src_hooks"/*; do

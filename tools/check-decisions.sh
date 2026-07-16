@@ -266,9 +266,11 @@ check_kb_json_format() {
 }
 
 # Decision: a fresh install creates .wip/tools/kb-network-policy.json
-# (fail-safe default: network_write false, network_read true) and copies the
-# source SHA marker (install/Packaged/VERSION) into the target repo as
-# .claude/MAXIME_VERSION, so maxime-start can compare local vs remote.
+# (fail-safe default: network_write false, network_read true) and writes a
+# version marker (.claude/MAXIME_VERSION) computed LIVE at install time (git
+# rev-parse HEAD of the source repo) -- never copied from a committed file,
+# which would always be at least one commit stale (it can't know the commit
+# that carries it). See decisions-log 2026-07-16.
 # maxime-kb/maxime-start/maxime-init/maxime-handoff document the new
 # network-policy, version-check, ttl-differentiation and
 # session-learnings-capture behaviors in their generated text.
@@ -297,18 +299,16 @@ check_kb_network_policy_and_version() {
     return
   fi
 
-  local source_version_path="$repository_root/install/Packaged/VERSION"
-  if [ ! -f "$source_version_path" ]; then
-    fail "$name" "install/Packaged/VERSION manquant -- generate-adapters.sh devrait le produire."
-    return
-  fi
   local installed_version_path="$fixture/.claude/MAXIME_VERSION"
   if [ ! -f "$installed_version_path" ]; then
-    fail "$name" ".claude/MAXIME_VERSION non copie a l'installation."
+    fail "$name" ".claude/MAXIME_VERSION non cree a l'installation."
     return
   fi
-  if ! cmp -s "$source_version_path" "$installed_version_path"; then
-    fail "$name" ".claude/MAXIME_VERSION ne correspond pas a install/Packaged/VERSION."
+  local live_sha installed_sha
+  live_sha="$(git -C "$repository_root" rev-parse HEAD)"
+  installed_sha="$(cat "$installed_version_path")"
+  if [ "$live_sha" != "$installed_sha" ]; then
+    fail "$name" ".claude/MAXIME_VERSION ($installed_sha) ne correspond pas au HEAD reel du repo source ($live_sha) -- devrait etre calcule en direct, pas copie d'un fichier committe."
     return
   fi
 

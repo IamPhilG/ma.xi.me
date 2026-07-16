@@ -208,21 +208,4 @@ $bodyWithGuard
     Write-Utf8File (Join-Path $packagedRoot ".copilot/agents/$name.agent.md") $copilotAgentBody
 }
 
-# Version marker: the source commit SHA at generation time, copied by each
-# install-<host>.* into the target repo so maxime-start can detect drift
-# against the ma.xi.me source repo (see decisions-log 2026-07-16). Wrapped in
-# try/catch: under $ErrorActionPreference = 'Stop', a native command writing
-# to stderr (e.g. git outside a git repo, as happens when check-adapter-sync
-# regenerates into a plain temp directory) raises a terminating error even
-# with 2>$null -- this must never break adapter generation itself.
-try {
-    $sourceSha = (& git -C $root rev-parse HEAD 2>$null)
-    if ($LASTEXITCODE -eq 0 -and $sourceSha) {
-        Write-Utf8File (Join-Path $packagedRoot 'VERSION') $sourceSha.Trim()
-    }
-}
-catch {
-    # Not a git repository (e.g. temp comparison dir) -- no VERSION file, not fatal.
-}
-
 Write-Host 'mA.xI.me adapters generated from core.' -ForegroundColor Green

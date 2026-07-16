@@ -53,12 +53,7 @@ function Install-ClaudeWorkspace {
     Backup-IfExists -Path $claudeMdTarget -BackupDir $backupDir
     Copy-Item $srcClaudeMd $claudeMdTarget -Force
 
-    $srcVersion = Join-Path $srcRepoRoot 'install\Packaged\VERSION'
-    if (Test-Path $srcVersion) {
-        $versionTarget = Join-Path $claudeRootTarget 'MAXIME_VERSION'
-        Backup-IfExists -Path $versionTarget -BackupDir $backupDir
-        Copy-Item $srcVersion $versionTarget -Force
-    }
+    Write-MaximeVersionMarker -SrcRepoRoot $srcRepoRoot -TargetPath (Join-Path $claudeRootTarget 'MAXIME_VERSION') -BackupDir $backupDir
 
     $srcSettings = Join-Path $srcRepoRoot 'install\Packaged\.claude\settings.json'
     if (Test-Path $srcSettings) {

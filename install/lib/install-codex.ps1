@@ -71,12 +71,7 @@ function Install-CodexWorkspace {
         Copy-Item $_.FullName $skillsTargetRoot -Recurse -Force
     }
 
-    $srcVersion = Join-Path $srcRepoRoot 'install\Packaged\VERSION'
-    if (Test-Path $srcVersion) {
-        $versionTarget = Join-Path $RepoRoot '.agents\MAXIME_VERSION'
-        Backup-IfExists -Path $versionTarget -BackupDir $backupDir
-        Copy-Item $srcVersion $versionTarget -Force
-    }
+    Write-MaximeVersionMarker -SrcRepoRoot $srcRepoRoot -TargetPath (Join-Path $RepoRoot '.agents\MAXIME_VERSION') -BackupDir $backupDir
 
     if (-not $WhatIfPreference) {
         Write-Host "mA.xI.me installe pour Codex (workspace)." -ForegroundColor Green

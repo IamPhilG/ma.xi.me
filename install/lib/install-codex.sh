@@ -79,12 +79,7 @@ install_codex_workspace() {
     exit 1
   fi
 
-  local src_version="$src_repo_root/install/Packaged/VERSION"
-  if [ -f "$src_version" ]; then
-    local version_target="$repo_root/.agents/MAXIME_VERSION"
-    backup_if_exists "$version_target" "$backup_dir"
-    run cp -f "$src_version" "$version_target"
-  fi
+  write_maxime_version_marker "$src_repo_root" "$repo_root/.agents/MAXIME_VERSION" "$backup_dir"
 
   if [ "$dry" = 0 ]; then
     echo -e "\033[32mmA.xI.me installe pour Codex (workspace).\033[0m"

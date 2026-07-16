@@ -207,14 +207,4 @@ EOF
 done < <(find "$workflow_root" -maxdepth 1 -type f -name 'maxime-*.md' -print | sort)
 [ "$workflow_count" -eq 7 ] || { echo "Expected seven canonical workflows; found $workflow_count." >&2; exit 1; }
 
-# Version marker: the source commit SHA at generation time, copied by each
-# install-<host>.* into the target repo so maxime-start can detect drift
-# against the ma.xi.me source repo (see decisions-log 2026-07-16).
-source_sha="$(git -C "$root" rev-parse HEAD 2>/dev/null || true)"
-if [ -n "$source_sha" ]; then
-  write_file "$packaged_root/VERSION" <<EOF
-$source_sha
-EOF
-fi
-
 echo 'mA.xI.me adapters generated from core.'

@@ -297,9 +297,11 @@ try {
     }
 
     # Decision: a fresh install creates .wip/tools/kb-network-policy.json
-    # (fail-safe default: network_write false, network_read true) and copies
-    # the source SHA marker (install/Packaged/VERSION) into the target repo
-    # as .claude/MAXIME_VERSION, so maxime-start can compare local vs remote.
+    # (fail-safe default: network_write false, network_read true) and writes
+    # a version marker (.claude/MAXIME_VERSION) computed LIVE at install time
+    # (git rev-parse HEAD of the source repo) -- never copied from a
+    # committed file, which would always be at least one commit stale (it
+    # can't know the commit that carries it). See decisions-log 2026-07-16.
     # maxime-kb/maxime-start/maxime-init/maxime-handoff document the new
     # network-policy, version-check, ttl-differentiation and
     # session-learnings-capture behaviors in their generated text.
@@ -322,18 +324,14 @@ try {
             throw "network_read devrait etre true par defaut, trouve: $($policy.network_read)"
         }
 
-        $sourceVersionPath = Join-Path $repositoryRoot 'install\Packaged\VERSION'
-        if (!(Test-Path $sourceVersionPath)) {
-            throw 'install/Packaged/VERSION manquant -- generate-adapters.ps1/.sh devrait le produire.'
-        }
         $installedVersionPath = Join-Path $fixture '.claude\MAXIME_VERSION'
         if (!(Test-Path $installedVersionPath)) {
-            throw '.claude/MAXIME_VERSION non copie a l''installation.'
+            throw '.claude/MAXIME_VERSION non cree a l''installation.'
         }
-        $sourceSha = (Get-Content -Raw -Path $sourceVersionPath).Trim()
+        $liveSha = (& git -C $repositoryRoot rev-parse HEAD).Trim()
         $installedSha = (Get-Content -Raw -Path $installedVersionPath).Trim()
-        if ($sourceSha -ne $installedSha) {
-            throw ".claude/MAXIME_VERSION ($installedSha) ne correspond pas a install/Packaged/VERSION ($sourceSha)."
+        if ($liveSha -ne $installedSha) {
+            throw ".claude/MAXIME_VERSION ($installedSha) ne correspond pas au HEAD reel du repo source ($liveSha) -- devrait etre calcule en direct, pas copie d'un fichier committe."
         }
 
         $maximeStart = Get-Content -Raw -Path (Join-Path $repositoryRoot 'install\Packaged\agents\maxime-start.md')

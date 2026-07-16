@@ -148,6 +148,30 @@ function Add-GitignoreEntries {
     }
 }
 
+function Write-MaximeVersionMarker {
+    param(
+        [Parameter(Mandatory = $true)][string]$SrcRepoRoot,
+        [Parameter(Mandatory = $true)][string]$TargetPath,
+        [Parameter(Mandatory = $true)][string]$BackupDir
+    )
+    # Computed live at install time, never copied from a committed file: a
+    # SHA baked into a generated file is always at least one commit stale
+    # (it can't know the commit that carries it). See decisions-log
+    # 2026-07-16. Wrapped in try/catch: under $ErrorActionPreference =
+    # 'Stop', a native command writing to stderr (e.g. git outside a git
+    # repo) raises a terminating error even with 2>$null.
+    try {
+        $sha = (& git -C $SrcRepoRoot rev-parse HEAD 2>$null)
+        if ($LASTEXITCODE -eq 0 -and $sha) {
+            Backup-IfExists -Path $TargetPath -BackupDir $BackupDir
+            Set-Content -Path $TargetPath -Value $sha.Trim() -Encoding UTF8 -NoNewline
+        }
+    }
+    catch {
+        # Not a git repository -- no version marker, not fatal.
+    }
+}
+
 function Remove-GitignoreEntries {
     param(
         [Parameter(Mandatory = $true)][string]$RepoRoot,
