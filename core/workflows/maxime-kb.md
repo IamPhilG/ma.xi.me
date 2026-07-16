@@ -34,6 +34,24 @@ se réduire à quelques mots (`title`, `source`, `content`). Schéma complet :
    Si le fichier de politique n'existe pas, se comporter comme si
    `network_write: false` et le signaler une fois, sans bloquer le travail
    dans `.wip/kb/` (toujours local, jamais concerné par cette politique).
+
+   Une fois l'écriture approuvée (`network_write: true` et validation
+   explicite de l'utilisateur), la mécanique Git réelle a deux temps
+   distincts, dans deux repos — ne jamais s'arrêter au premier :
+   1. Dans `knowledge-base/` : `git checkout main` puis `git pull` avant
+      toute modification (`git submodule add`/`update` place le submodule en
+      detached HEAD par défaut ; un commit fait en detached HEAD part dans
+      le vide, jamais rattaché à une branche, facile à perdre). Puis
+      committer et pousser la fiche normalement.
+   2. Dans le repository courant (le consommateur) : committer et pousser le
+      nouveau pointeur de submodule (`git add knowledge-base && git commit
+      -m "chore: bump knowledge-base submodule"`). Sans ce second commit, la
+      fiche est bien poussée vers `knowledge-base/`, mais le repo
+      consommateur reste épinglé sur l'ancien commit — silencieusement, sans
+      erreur. Proposer les deux commits dans la même passe, jamais comme une
+      étape qu'on pourrait oublier après coup.
+   Vérifier ensuite `git status` dans le repo consommateur : aucune dérive
+   `submodule (new commits)` ne doit subsister.
 6. Proposer la création d'une nouvelle fiche seulement si le savoir rencontré
    est durable, transversal et publiable, absent des fiches existantes.
    Toute nouvelle fiche respecte le schéma JSON (`id`, `type`, `title`,
