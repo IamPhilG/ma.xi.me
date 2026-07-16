@@ -57,8 +57,17 @@ function Install-CodexWorkspace {
 
     New-Item -ItemType Directory -Force -Path $skillsTargetRoot | Out-Null
 
+    # No confirmed native import/merge mechanism for AGENTS.md (issue #27):
+    # the override-file semantics found in research were ambiguous ("at most
+    # one file used per directory" suggests replace, not merge). Instead of
+    # overwriting AGENTS.md wholesale, splice the generated content into an
+    # explicit marker block, preserving any pre-existing project content
+    # around it.
     Backup-IfExists -Path $agentsTarget -BackupDir $backupDir
-    Copy-Item $codexSource $agentsTarget -Force
+    $script:codexAgentsMixed = Merge-MaximeManagedBlock -TargetPath $agentsTarget -GeneratedContent (Get-Content -Raw -Path $codexSource)
+    if ($script:codexAgentsMixed -and -not $WhatIfPreference) {
+        Write-Host "AGENTS.md contient du contenu projet pre-existant -- fusionne avec le contenu genere via un bloc delimite, jamais ecrase entierement." -ForegroundColor Yellow
+    }
 
     $skillDirs = Get-ChildItem -Path $skillsSourceRoot -Filter 'maxime*' -Directory
     if ($skillDirs.Count -eq 0) {
@@ -82,14 +91,19 @@ function Install-CodexWorkspace {
     }
 }
 
-$codexExcludeEntries = @(
-    '/AGENTS.md',
-    '/.agents/skills/maxime-*/',
-    '/.agents/MAXIME_VERSION'
-)
-
 Install-CodexWorkspace -RepoRoot $RepoRoot
 if (-not $Shared) {
+    # AGENTS.md is excluded by default only when it's purely tool-owned. Once
+    # it mixes in real project content (issue #27 merge), it is no longer
+    # ours alone to exclude -- the project content it now carries deserves
+    # the same git treatment it would have had before mA.xI.me touched it.
+    $codexExcludeEntries = @(
+        '/.agents/skills/maxime-*/',
+        '/.agents/MAXIME_VERSION'
+    )
+    if (-not $script:codexAgentsMixed) {
+        $codexExcludeEntries = @('/AGENTS.md') + $codexExcludeEntries
+    }
     Add-GitExcludeEntries -RepoRoot $RepoRoot -Entries $codexExcludeEntries
     Add-GitignoreEntries -RepoRoot $RepoRoot -Header '# mA.xI.me -- Codex (outil installe, pas du code source)' -Entries $codexExcludeEntries
 }

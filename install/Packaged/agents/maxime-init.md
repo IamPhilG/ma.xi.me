@@ -11,7 +11,13 @@ réinstaller/mettre à jour une installation existante (idempotent, comme
 `git init`).
 
 1. Vérifier que le dossier cible est un repository Git.
-2. Inspecter le contexte et les conventions existantes sans les écraser.
+2. Inspecter le contexte et les conventions existantes sans les écraser. Un
+   `CLAUDE.md`/`copilot-instructions.md`/`AGENTS.md` project-specific déjà
+   présent (sans le marqueur "Generated from `core/socle.md`") n'est jamais
+   perdu : `install-claude`/`install-copilot` le déplacent une fois vers un
+   fichier compagnon que l'hôte fusionne nativement (`.claude/rules/`,
+   `.github/instructions/`) ; `install-codex` le fusionne dans `AGENTS.md`
+   via un bloc délimité, faute de mécanisme natif confirmé pour cet hôte.
 3. Proposer les adaptateurs à installer : Claude, Copilot, Codex ou tous.
 4. Présenter les fichiers à créer ou remplacer et les sauvegardes prévues.
 5. Attendre la validation avant l'installation.

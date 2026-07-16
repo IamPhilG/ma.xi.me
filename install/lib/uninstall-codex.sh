@@ -58,7 +58,19 @@ remove_empty_dir() {
 
 backup_dir="$repo_root/.bkp/codex-uninstall/$stamp"
 
-remove_if_exists "$repo_root/AGENTS.md" "$backup_dir"
+# AGENTS.md may now mix project content merged in by install-codex.sh (issue
+# #27): strip only the managed block if one is present, never delete the
+# whole file outright -- mirrors merge_maxime_managed_block at install time.
+# Falls back to full removal for pre-fix installs (no block to find).
+agents_target="$repo_root/AGENTS.md"
+if [ -e "$agents_target" ]; then
+  if [ "$dry" = 1 ]; then
+    echo "[dry-run] remove or strip managed block from $agents_target"
+  else
+    [ "$remove_state" = 1 ] || backup_if_exists "$agents_target" "$backup_dir"
+    remove_maxime_managed_block "$agents_target" || rm -f "$agents_target"
+  fi
+fi
 
 skills_target_root="$repo_root/.agents/skills"
 if [ -d "$skills_target_root" ]; then

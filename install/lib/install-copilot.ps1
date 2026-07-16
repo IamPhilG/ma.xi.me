@@ -42,6 +42,17 @@ function Install-CopilotWorkspace {
     $backupDir = Join-Path $RepoRoot ".bkp\copilot-install\$stamp"
 
     New-Item -ItemType Directory -Force -Path $agentsTarget | Out-Null
+
+    # Preserve pre-existing project-specific copilot-instructions.md content
+    # instead of silently overwriting it (issue #27): move it once into
+    # .github/instructions/, which Copilot merges automatically into context
+    # alongside copilot-instructions.md -- no import syntax needed.
+    $projectConventionsTarget = Join-Path $ghRoot 'instructions\project-conventions.instructions.md'
+    $preservedCopilot = Save-PreExistingProjectContent -TargetPath $instructionsTarget -PreserveDestination $projectConventionsTarget -PreserveHeader "---`napplyTo: ""**""`n---`n`n"
+    if ($preservedCopilot -and -not $WhatIfPreference) {
+        Write-Host "Contenu copilot-instructions.md pre-existant preserve dans $projectConventionsTarget (fusionne automatiquement par Copilot, jamais touche par mA.xI.me a l'avenir)." -ForegroundColor Yellow
+    }
+
     Backup-IfExists -Path $instructionsTarget -BackupDir $backupDir
 
     $srcAgents = Join-Path $copilotSrc 'agents'

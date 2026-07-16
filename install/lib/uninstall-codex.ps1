@@ -51,7 +51,24 @@ function Remove-EmptyDirectory {
 
 $backupDir = Join-Path $RepoRoot ".bkp\codex-uninstall\$stamp"
 
-Remove-IfExists -Path (Join-Path $RepoRoot 'AGENTS.md') -BackupDir $backupDir
+# AGENTS.md may now mix project content merged in by install-codex.ps1
+# (issue #27): strip only the managed block if one is present, never delete
+# the whole file outright -- mirrors Merge-MaximeManagedBlock at install
+# time. Falls back to full removal for pre-fix installs (no block to find).
+$agentsTarget = Join-Path $RepoRoot 'AGENTS.md'
+if (Test-Path $agentsTarget) {
+    if ($WhatIfPreference) {
+        Write-Host "What if: remove or strip managed block from $agentsTarget"
+    }
+    else {
+        if (-not $RemoveState) {
+            Backup-IfExists -Path $agentsTarget -BackupDir $backupDir
+        }
+        if (-not (Remove-MaximeManagedBlock -TargetPath $agentsTarget)) {
+            Remove-Item -Path $agentsTarget -Force
+        }
+    }
+}
 
 $skillsTargetRoot = Join-Path $RepoRoot '.agents\skills'
 if (Test-Path $skillsTargetRoot) {

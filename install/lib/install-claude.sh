@@ -61,6 +61,14 @@ install_claude_workspace() {
 
   run mkdir -p "$agents_target" "$hooks_target"
 
+  # Preserve pre-existing project-specific CLAUDE.md content instead of
+  # silently overwriting it (issue #27): move it once into .claude/rules/,
+  # which Claude Code loads automatically without any import line needed.
+  local project_conventions_target="$claude_root/rules/project-conventions.md"
+  if [ "$dry" = 0 ] && save_pre_existing_project_content "$claude_md_target" "$project_conventions_target"; then
+    echo "Contenu CLAUDE.md pre-existant preserve dans $project_conventions_target (charge automatiquement par Claude Code via .claude/rules/, jamais touche par mA.xI.me a l'avenir)."
+  fi
+
   backup_if_exists "$claude_md_target" "$backup_dir"
   run cp -f "$src_claude_md" "$claude_md_target"
 

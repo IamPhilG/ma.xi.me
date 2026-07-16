@@ -50,6 +50,15 @@ function Install-ClaudeWorkspace {
 
     New-Item -ItemType Directory -Force -Path $agentsTarget, $hooksTarget | Out-Null
 
+    # Preserve pre-existing project-specific CLAUDE.md content instead of
+    # silently overwriting it (issue #27): move it once into .claude/rules/,
+    # which Claude Code loads automatically without any import line needed.
+    $projectConventionsTarget = Join-Path $claudeRootTarget 'rules\project-conventions.md'
+    $preservedClaude = Save-PreExistingProjectContent -TargetPath $claudeMdTarget -PreserveDestination $projectConventionsTarget
+    if ($preservedClaude -and -not $WhatIfPreference) {
+        Write-Host "Contenu CLAUDE.md pre-existant preserve dans $projectConventionsTarget (charge automatiquement par Claude Code via .claude/rules/, jamais touche par mA.xI.me a l'avenir)." -ForegroundColor Yellow
+    }
+
     Backup-IfExists -Path $claudeMdTarget -BackupDir $backupDir
     Copy-Item $srcClaudeMd $claudeMdTarget -Force
 
