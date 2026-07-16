@@ -82,9 +82,14 @@ Tous les outils lisent et écrivent le même état local :
     decisions-log.md
   results/
     dead-ends.md
+  kb/
+    index.json
+    active/<theme>/<id>.json
+    archived/<theme>/<id>.json
   tools/
     cleanup-wip.ps1
     cleanup-wip.sh
+    kb-network-policy.json
 ```
 
 L'installateur crée ces dossiers et ajoute `/.wip/` ainsi que `/.bkp/` au fichier
@@ -95,7 +100,43 @@ sauvegardés dans `.bkp/<cible>-install/<horodatage>/`.
 `core/tools/` à chaque installation. Ils purgent les artefacts `.wip/` obsolètes
 (handoffs anciens, specs/résultats/tests périmés) en mode `dry-run` par défaut ;
 la suppression réelle exige `-Apply` / `--apply`. Ils ne touchent jamais rien
-hors de `.wip/`.
+hors de `.wip/`. Depuis le 2026-07-16, ils acceptent aussi
+`-RetainKbArchivedDays`/`--retain-kb-archived-days` (90 par défaut) : seul
+`kb/archived/` est purgé par âge, jamais `kb/active/` (une fiche active n'est
+jamais supprimée automatiquement, seulement signalée pour revalidation via
+`ttl_days`). Les entrées `index.json` correspondant aux fichiers supprimés sont
+retirées au passage.
+
+### Base de connaissance (`.wip/kb/` et `knowledge-base/`)
+
+`maxime-kb` distingue deux sources, jamais confondues :
+
+- **`.wip/kb/`** (local à ce repo) : fiches au format **JSON**, pas Markdown —
+  `index.json` léger (sans le corps, seul fichier chargé systématiquement) et
+  `active/<theme>/<id>.json`. Schéma complet dans `core/workflows/maxime-kb.md`
+  (règle 6) : `id`, `type`, `theme`, `tags`, `scope`, `status`, `confidence`,
+  `audience`, `source`, `validated`, `created`, `ttl_days`, `links`, `content`
+  — noms de champs courts, valeurs courtes/contrôlées quand c'est
+  sémantiquement possible (`source`/`title`/`content` exemptés). Remplace
+  l'ancienne convention Markdown par suffixe de nom de fichier `.new` par un
+  champ `status` réel.
+- **`knowledge-base/`** (submodule Git partagé, optionnel) : encore au format
+  Markdown+frontmatter — migration JSON prévue dans une itération séparée, pas
+  faite ici pour ne pas casser les autres consommateurs (ex. `coreapi`) qui le
+  lisent déjà.
+
+Avant toute écriture réseau (nouvelle fiche vers `knowledge-base/`, mise à
+jour, `git submodule update`), `maxime-kb` lit
+`.wip/tools/kb-network-policy.json` (`network_read`, `network_write` — `false`
+par défaut pour l'écriture, jamais présumée autorisée) ; `maxime-init` pose la
+question explicitement lors de la proposition du submodule. Une écriture
+approuvée suit une mécanique Git en deux temps, dans deux repos : sortir
+`knowledge-base/` du detached HEAD (`git submodule add`/`update` l'y place par
+défaut) avant de committer et pousser la fiche, puis committer et pousser le
+bump du pointeur de submodule dans le repo consommateur — sans ce second
+commit, la fiche part bien vers `knowledge-base/` mais le repo consommateur
+reste épinglé sur l'ancien commit, sans erreur visible (trouvé en usage réel
+sur `OurITRes/knowledge-base`, issue #29).
 
 ## Installation
 
@@ -117,18 +158,70 @@ Les cibles disponibles sont `claude`, `copilot`, `codex`, `both` et `all`.
 Par défaut, les fichiers projetés par cible sont ajoutés à `.git/info/exclude`
 du repo cible (motifs précis : `/CLAUDE.md`, `/.claude/agents/maxime*.md`,
 `/.claude/skills/maxime-*/`, `/.claude/hooks/block-destructive-bash.sh`,
-`/.claude/settings.json`, `/.github/copilot-instructions.md`,
-`/.github/agents/maxime*.agent.md`, `/.github/prompts/maxime-*.prompt.md`,
-`/AGENTS.md`, `/.agents/skills/maxime-*/`) — jamais de dossier entier comme
-`/.github/`, pour ne pas masquer du contenu de l'équipe sans rapport avec
-mA.xI.me. Les mêmes motifs, par cible, sont aussi ajoutés (création ou mise à
-jour) au `.gitignore` du repo cible, sous un bloc `# mA.xI.me -- <hôte> (outil
-installe, pas du code source)` : `.git/info/exclude` protège la machine qui a
-lancé l'installateur, `.gitignore` protège tout autre clone/contributeur qui
-ne l'a pas lancé — différent de `.wip/`/`.bkp/`, qui restent volontairement
-exclusifs à `.git/info/exclude` (état de travail, jamais un `.gitignore`).
-`-Shared`/`--shared` desactive les deux ajouts : les fichiers redeviennent
-commitables (comportement historique, pensé pour un socle partagé en équipe).
+`/.claude/settings.json`, `/.claude/MAXIME_VERSION`,
+`/.github/copilot-instructions.md`, `/.github/agents/maxime*.agent.md`,
+`/.github/prompts/maxime-*.prompt.md`, `/.github/MAXIME_VERSION`,
+`/AGENTS.md`, `/.agents/skills/maxime-*/`, `/.agents/MAXIME_VERSION`) — jamais
+de dossier entier comme `/.github/`, pour ne pas masquer du contenu de
+l'équipe sans rapport avec mA.xI.me. Exception : `/AGENTS.md` n'est ajouté que
+si Codex n'a fusionné aucun contenu projet pré-existant dedans (voir
+[Contenu projet préexistant](#contenu-projet-préexistant) ci-dessous) — un
+fichier mêlé n'est plus purement possédé par l'outil. Les mêmes motifs, par
+cible, sont aussi ajoutés (création ou mise à jour) au `.gitignore` du repo
+cible, sous un bloc `# mA.xI.me -- <hôte> (outil installe, pas du code
+source)` : `.git/info/exclude` protège la machine qui a lancé l'installateur,
+`.gitignore` protège tout autre clone/contributeur qui ne l'a pas lancé —
+différent de `.wip/`/`.bkp/`, qui restent volontairement exclusifs à
+`.git/info/exclude` (état de travail, jamais un `.gitignore`). `-Shared`/
+`--shared` desactive les deux ajouts : les fichiers redeviennent commitables
+(comportement historique, pensé pour un socle partagé en équipe).
+
+### Contenu projet préexistant
+
+Si le repo cible a déjà son propre `CLAUDE.md`/`copilot-instructions.md`/
+`AGENTS.md` avant l'installation (détecté par l'absence du marqueur
+"Generated from `core/socle.md`" dans le fichier existant), ce contenu est sauvegardé
+comme le reste dans `.bkp/`, mais aussi préservé activement — problème réel
+trouvé en déployant mA.xI.me sur `OurITRes/knowledge-base` (issue #27), où le
+contenu project-specific disparaissait silencieusement du fichier actif :
+
+- **Claude/Copilot** : le contenu pré-existant est déplacé, une seule fois,
+  vers un fichier compagnon que l'hôte fusionne nativement en contexte sans
+  aucune syntaxe d'import (`.claude/rules/project-conventions.md` pour Claude,
+  `.github/instructions/project-conventions.instructions.md` avec
+  `applyTo: "**"` pour Copilot). `CLAUDE.md`/`copilot-instructions.md`
+  redeviennent alors des fichiers propres, entièrement générés — nouveau
+  helper partagé `Save-PreExistingProjectContent`/
+  `save_pre_existing_project_content` (`install/lib/common.ps1`/`.sh`).
+- **Codex** : aucun mécanisme natif de fusion confirmé pour `AGENTS.md` (le
+  fichier `AGENTS.override.md` trouvé en recherche a une sémantique ambiguë —
+  "au plus un fichier utilisé par dossier" suggère un remplacement, pas une
+  fusion). Le contenu généré est donc fusionné directement dans `AGENTS.md`, à
+  l'intérieur d'un bloc délimité explicite (`<!-- BEGIN mA.xI.me generated
+  -->`/`<!-- END mA.xI.me generated -->`) — nouveau helper
+  `Merge-MaximeManagedBlock`/`merge_maxime_managed_block`. Les réinstallations
+  suivantes ne remplacent que ce bloc, jamais de duplication. `uninstall-codex`
+  utilise le helper miroir `Remove-MaximeManagedBlock`/
+  `remove_maxime_managed_block` : si un bloc géré existe, seul le bloc est
+  retiré, jamais le fichier entier — sinon le contenu projet fusionné serait
+  perdu à la désinstallation.
+
+### Version
+
+Chaque `install-{claude,copilot,codex}.*` écrit un marqueur de version
+(`MAXIME_VERSION`) dans le repo cible, calculé **en direct**
+(`git rev-parse HEAD` sur le repo source, au moment de l'installation) — jamais
+copié d'un fichier committé à l'avance : un fichier généré ne peut pas
+connaître le commit qui le porte, donc un SHA pré-calculé serait toujours en
+retard d'au moins un commit (constaté en pratique : 4 commits de retard après
+un premier essai avec un `install/Packaged/VERSION` committé, abandonné le jour
+même). `maxime-start` compare ce marqueur au SHA distant du repo source (si
+`network_read` le permet) pour détecter un écart et proposer une mise à jour
+via `maxime-init`, qui recompose les mêmes petits scripts `install/lib/` que
+l'installation initiale, jamais un script séparé. Premier tag du repo source :
+`v0.1.0` — pas de branche `release` dédiée pour l'instant, jugée plus lourde en
+process qu'un calcul en direct pour un outil à un seul mainteneur sans
+engagement de support d'anciennes versions.
 
 `install/uninstall.ps1` et `.sh` sont le miroir exact de l'installateur par
 cible : ils retirent uniquement ce que l'installateur a projeté (jamais un
@@ -185,7 +278,9 @@ ne sont jamais supprimés automatiquement, seulement signalés.
   (`codex exec --sandbox read-only` ou `/permissions`), jamais par le fichier skill.
 - **Côté Copilot, le même trou existe, mais la cause et la garantie réelle sont
   différentes** — étude complète dans
-  [`.wip/kb/20260713.new.agent-skills-cross-tool-integration.md`](../.wip/kb/20260713.new.agent-skills-cross-tool-integration.md).
+  [`.wip/kb/active/agent-tooling/agent-skills-cross-tool-integration.json`](../.wip/kb/active/agent-tooling/agent-skills-cross-tool-integration.json)
+  (fiche migrée du Markdown vers le format JSON le 2026-07-16, voir
+  [Base de connaissance](#base-de-connaissance-wipkb-et-knowledge-base) plus haut).
   Copilot découvre nativement les `SKILL.md` sous **trois** emplacements
   (`.github/skills/`, `.claude/skills/`, `.agents/skills/` — standard ouvert
   [Agent Skills](https://agentskills.io)), donc peut charger le `SKILL.md`
