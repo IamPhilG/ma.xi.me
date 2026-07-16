@@ -46,3 +46,9 @@ Thumbs.db
 # mA.xI.me -- Codex (outil installe, pas du code source)
 /AGENTS.md
 /.agents/skills/maxime-*/
+
+/.claude/MAXIME_VERSION
+
+/.github/MAXIME_VERSION
+
+/.agents/MAXIME_VERSION
