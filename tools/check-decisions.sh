@@ -361,6 +361,50 @@ check_kb_submodule_push_mechanics() {
   pass "$name"
 }
 
+# Decision (issue #24): the engine/effort catalog is per-host, never a single
+# universal rule -- Claude Code can pick a delegated sub-agent's model itself
+# (informing without blocking, confirming only on a clear departure from the
+# size-appropriate default), Copilot and Codex can only recommend and ask
+# (no confirmed self-configuration mechanism on either platform as of the KB
+# research date). maxime-plan documents this; the 3 catalog fiches back it
+# with sourced research.
+check_engine_catalog_kb_and_policy() {
+  local name="catalogue KB moteurs/effort par hote + politique documentee dans maxime-plan (issue #24)"
+  local maxime_plan_agent="$repository_root/install/Packaged/agents/maxime-plan.md"
+
+  if ! grep -q 'engine-catalog' "$maxime_plan_agent"; then
+    fail "$name" "L'agent maxime-plan genere ne mentionne pas le catalogue KB engine-catalog."
+    return
+  fi
+  if ! grep -qi 'Copilot et Codex ne peuvent' "$maxime_plan_agent"; then
+    fail "$name" "L'agent maxime-plan genere ne documente pas la politique par hote (Claude auto-configurable, Copilot/Codex recommandent+demandent)."
+    return
+  fi
+
+  local id
+  for id in claude-code-models copilot-models codex-models; do
+    local fiche="$repository_root/.wip/kb/active/engine-catalog/$id.json"
+    if [ ! -f "$fiche" ]; then
+      fail "$name" "Fiche KB manquante: $fiche"
+      return
+    fi
+    if ! jq empty "$fiche" >/dev/null 2>&1; then
+      fail "$name" "Fiche KB invalide (JSON malforme): $fiche"
+      return
+    fi
+    if ! jq -e --arg id "$id" '.id == $id and .theme == "engine-catalog" and (.source | length) > 0' "$fiche" >/dev/null 2>&1; then
+      fail "$name" "Fiche KB $fiche : id/theme/source ne respectent pas le schema attendu."
+      return
+    fi
+    if ! jq -e --arg path "active/engine-catalog/$id.json" '[.[] | select(.id == "'"$id"'" and .path == $path)] | length == 1' "$repository_root/.wip/kb/index.json" >/dev/null 2>&1; then
+      fail "$name" "index.json ne reference pas correctement la fiche $id."
+      return
+    fi
+  done
+
+  pass "$name"
+}
+
 # Decision: cleanup-wip only purges .wip/kb/archived/ by age (never
 # .wip/kb/active/), and must not fail when .wip/kb/archived/ does not exist
 # yet (same class of regression as the 2026-07-11 set -e/tests bug).
@@ -827,6 +871,7 @@ check_fresh_install
 check_kb_json_format
 check_kb_network_policy_and_version
 check_kb_submodule_push_mechanics
+check_engine_catalog_kb_and_policy
 check_kb_cleanup_without_archived
 check_preserve_project_content
 check_no_writes_outside_repo

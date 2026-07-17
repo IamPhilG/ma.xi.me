@@ -375,6 +375,41 @@ try {
         $true
     }
 
+    # Decision (issue #24): the engine/effort catalog is per-host, never a
+    # single universal rule -- Claude Code can pick a delegated sub-agent's
+    # model itself (informing without blocking, confirming only on a clear
+    # departure from the size-appropriate default), Copilot and Codex can
+    # only recommend and ask (no confirmed self-configuration mechanism on
+    # either platform as of the KB research date). maxime-plan documents
+    # this; the 3 catalog fiches back it with sourced research.
+    Test-Decision 'catalogue KB moteurs/effort par hote + politique documentee dans maxime-plan (issue #24)' {
+        $maximePlanAgent = Get-Content -Raw -Path (Join-Path $repositoryRoot 'install\Packaged\agents\maxime-plan.md')
+        if ($maximePlanAgent -notmatch 'engine-catalog') {
+            throw "L'agent maxime-plan genere ne mentionne pas le catalogue KB engine-catalog."
+        }
+        if ($maximePlanAgent -notmatch '(?i)Copilot et Codex ne peuvent') {
+            throw "L'agent maxime-plan genere ne documente pas la politique par hote (Claude auto-configurable, Copilot/Codex recommandent+demandent)."
+        }
+
+        foreach ($id in @('claude-code-models', 'copilot-models', 'codex-models')) {
+            $fiche = Join-Path $repositoryRoot ".wip\kb\active\engine-catalog\$id.json"
+            if (!(Test-Path $fiche)) {
+                throw "Fiche KB manquante: $fiche"
+            }
+            $json = $null
+            try { $json = Get-Content -Raw -Path $fiche | ConvertFrom-Json } catch { throw "Fiche KB invalide (JSON malforme): $fiche" }
+            if ($json.id -ne $id -or $json.theme -ne 'engine-catalog' -or -not $json.source -or $json.source.Count -eq 0) {
+                throw "Fiche KB $fiche : id/theme/source ne respectent pas le schema attendu."
+            }
+            $index = Get-Content -Raw -Path (Join-Path $repositoryRoot '.wip\kb\index.json') | ConvertFrom-Json
+            $entry = $index | Where-Object { $_.id -eq $id }
+            if (-not $entry -or $entry.path -ne "active/engine-catalog/$id.json") {
+                throw "index.json ne reference pas correctement la fiche $id."
+            }
+        }
+        $true
+    }
+
     # Decision: cleanup-wip only purges .wip/kb/archived/ by age (never
     # .wip/kb/active/), and must not fail when .wip/kb/archived/ does not
     # exist yet (same class of regression as the 2026-07-11 set -e/tests bug).
