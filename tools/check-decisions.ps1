@@ -595,6 +595,60 @@ try {
         $true
     }
 
+    # Decision (2026-07-17): switching to main/master (git checkout|switch main)
+    # used to be a hard DENY in both destructive-command hooks -- too strict, it
+    # blocked a routine, safe post-merge sync just as hard as an actual direct
+    # commit on main. Softened to ASK: a human must still confirm, but it is no
+    # longer an unconditional block. Regression-checked alongside: the other
+    # hard_deny patterns (checkout --, checkout ., branch -D, reset --hard) stay
+    # DENY, unaffected by this change.
+    Test-Decision 'bascule vers main/master assouplie de deny vers ask, sans affaiblir les autres hard_deny' {
+        $fixture = Join-Path $tempRoot 'fixture-checkout-main-ask'
+        New-Item -ItemType Directory -Path $fixture | Out-Null
+        Push-Location $fixture
+        try { git init -q } finally { Pop-Location }
+        $fixture = (& git -C $fixture rev-parse --show-toplevel).Trim()
+
+        & (Join-Path $repositoryRoot 'install\install.ps1') -Target claude -WorkspaceRoot $fixture | Out-Null
+
+        $gitBash = Join-Path (Split-Path (Split-Path (Get-Command git.exe -ErrorAction Stop).Source -Parent) -Parent) 'bin\bash.exe'
+        if (!(Test-Path $gitBash)) {
+            throw "git-bash introuvable a l'emplacement attendu ($gitBash) -- impossible de tester fonctionnellement les hooks depuis ce checker."
+        }
+
+        $hooksDir = Join-Path $fixture '.claude\hooks'
+        $payload = Join-Path $tempRoot 'hook-payload-checkout-main.json'
+
+        function Invoke-HookAndGetDecision {
+            param([string]$Script, [string]$Json)
+            Set-Content -Path $payload -Value $Json -Encoding UTF8 -NoNewline
+            $bashScript = $Script -replace '\\', '/'
+            $out = Get-Content -Raw -Path $payload | & $gitBash $bashScript
+            if ([string]::IsNullOrEmpty($out)) { return '' }
+            return ($out | & $gitBash -c 'jq -r ".hookSpecificOutput.permissionDecision // empty"')
+        }
+
+        $bashHook = Join-Path $hooksDir 'block-destructive-bash.sh'
+        $psHook = Join-Path $hooksDir 'block-destructive-powershell.sh'
+
+        $decision = Invoke-HookAndGetDecision -Script $bashHook -Json ("{`"cwd`":`"$fixture`",`"tool_input`":{`"command`":`"git checkout main`"}}")
+        if ($decision -ne 'ask') {
+            throw "'git checkout main' n'est pas traite en ask par block-destructive-bash.sh (decision: '$decision')."
+        }
+
+        $decision = Invoke-HookAndGetDecision -Script $psHook -Json ("{`"cwd`":`"$fixture`",`"tool_input`":{`"command`":`"git switch master`"}}")
+        if ($decision -ne 'ask') {
+            throw "'git switch master' n'est pas traite en ask par block-destructive-powershell.sh (decision: '$decision')."
+        }
+
+        $decision = Invoke-HookAndGetDecision -Script $bashHook -Json ("{`"cwd`":`"$fixture`",`"tool_input`":{`"command`":`"git checkout -- .`"}}")
+        if ($decision -ne 'deny') {
+            throw "regression: 'git checkout -- .' n'est plus un deny dur (decision: '$decision')."
+        }
+
+        $true
+    }
+
     # Decision: by default, projected files (CLAUDE.md, .claude/, etc.) are added to
     # .git/info/exclude AND to .gitignore -- the whole install stays local via exclude,
     # and .gitignore documents/enforces the same patterns so the tool is never
