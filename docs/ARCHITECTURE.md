@@ -113,36 +113,52 @@ censée avoir lieu hors du repository cible, y compris pour du travail
 temporaire (voir [Garde-fous d'écriture](#garde-fous-décriture-hors-repo-hooks-claude)
 plus bas).
 
-### Base de connaissance (`.wip/kb/` et `knowledge-base/`)
+### Base de connaissance (`.wip/kb/` uniquement en local, `knowledge-base` en distant)
 
-`maxime-kb` distingue deux sources, jamais confondues :
+`.wip/kb/` est le **seul** répertoire de connaissance qui existe jamais sur
+disque dans un repository cible mA.xI.me — jamais de dossier
+`knowledge-base/`, jamais de submodule Git, jamais de clone même temporaire
+(y compris dans `.wip/tmp/`). Décision explicite du 2026-07-17 : un submodule
+avait été câblé une première fois dans ce repo lui-même pour valider le
+mécanisme, puis retiré (`git rm .gitmodules knowledge-base`) une fois établi
+que même un clone temporaire était indésirable.
 
-- **`.wip/kb/`** (local à ce repo) : fiches au format **JSON**, pas Markdown —
-  `index.json` léger (sans le corps, seul fichier chargé systématiquement) et
-  `active/<theme>/<id>.json`. Schéma complet dans `core/workflows/maxime-kb.md`
-  (règle 6) : `id`, `type`, `theme`, `tags`, `scope`, `status`, `confidence`,
-  `audience`, `source`, `validated`, `created`, `ttl_days`, `links`, `content`
-  — noms de champs courts, valeurs courtes/contrôlées quand c'est
-  sémantiquement possible (`source`/`title`/`content` exemptés). Remplace
-  l'ancienne convention Markdown par suffixe de nom de fichier `.new` par un
-  champ `status` réel.
-- **`knowledge-base/`** (submodule Git partagé, optionnel) : encore au format
-  Markdown+frontmatter — migration JSON prévue dans une itération séparée, pas
-  faite ici pour ne pas casser les autres consommateurs (ex. `coreapi`) qui le
-  lisent déjà.
+- **`.wip/kb/`** (local, seule source sur disque) : fiches au format
+  **JSON**, pas Markdown — `index.json` léger (sans le corps, seul fichier
+  chargé systématiquement) et `active/<theme>/<id>.json`. Schéma complet dans
+  `core/workflows/maxime-kb.md` (règle 8) : `id`, `type`, `theme`, `tags`,
+  `scope`, `status`, `confidence`, `audience`, `source`, `validated`,
+  `created`, `ttl_days`, `links`, `content` — noms de champs courts, valeurs
+  courtes/contrôlées quand c'est sémantiquement possible (`source`/`title`/
+  `content` exemptés).
+- **`knowledge-base`** (dépôt GitHub partagé — `OurITRes/knowledge-base`, URL
+  fixée dans `core/workflows/maxime-kb.md`, jamais à deviner ni à demander) :
+  même format JSON, même structure (`index.json`, `active/<theme>/<id>.json`
+  et `archived/`) — confirmé le 2026-07-17 par lecture directe (son
+  `KB-CONVENTIONS.md` documente un schéma aligné sur celui de ma.xi.me dès le
+  départ). Accédé **exclusivement via l'API GitHub** (`gh api`), en lecture
+  comme en écriture — jamais monté sur disque. `maxime-kb` (pas
+  `maxime-init`, qui se limite au déploiement) l'interroge dès sa première
+  invocation d'une session, avec l'objectif formulé par `maxime-start` pour
+  orienter la recherche ; une knowledge base JSON additionnelle, propre à un
+  projet ou un client, peut ensuite être interrogée séparément si Philippe en
+  fournit l'URL, avec la même règle d'accès (API uniquement).
 
-Avant toute écriture réseau (nouvelle fiche vers `knowledge-base/`, mise à
-jour, `git submodule update`), `maxime-kb` lit
-`.wip/tools/kb-network-policy.json` (`network_read`, `network_write` — `false`
-par défaut pour l'écriture, jamais présumée autorisée) ; `maxime-init` pose la
-question explicitement lors de la proposition du submodule. Une écriture
-approuvée suit une mécanique Git en deux temps, dans deux repos : sortir
-`knowledge-base/` du detached HEAD (`git submodule add`/`update` l'y place par
-défaut) avant de committer et pousser la fiche, puis committer et pousser le
-bump du pointeur de submodule dans le repo consommateur — sans ce second
-commit, la fiche part bien vers `knowledge-base/` mais le repo consommateur
-reste épinglé sur l'ancien commit, sans erreur visible (trouvé en usage réel
-sur `OurITRes/knowledge-base`, issue #29).
+Avant tout appel API en lecture, et avant toute écriture réseau (nouvelle
+fiche, mise à jour), `maxime-kb` lit `.wip/tools/kb-network-policy.json`
+(`network_read`, `network_write` — `false` par défaut pour l'écriture,
+jamais présumée autorisée) ; si le fichier n'existe pas encore ou si
+`network_write` est requis mais absent, `maxime-kb` pose la question
+explicitement au moment de le proposer, pas avant, pas pendant le
+déploiement. Une écriture approuvée publie via l'API GitHub (Git Data API ou
+Contents API) : créer une branche depuis `main`, committer la fiche sur
+cette branche via l'API (jamais directement sur `main` d'un repo partagé en
+équipe), puis ouvrir une pull request — jamais la fusionner automatiquement.
+Sans dossier local, il n'y a plus de pointeur de submodule à synchroniser
+dans le repository consommateur ; la pull request est la seule trace de la
+publication. Remplace l'ancienne mécanique en deux commits/deux repos basée
+sur un submodule (trouvée nécessaire en usage réel sur `OurITRes/knowledge-base`,
+issue #29, puis retirée le 2026-07-17 avec le submodule lui-même).
 
 ## Installation
 
@@ -320,7 +336,7 @@ ne sont jamais supprimés automatiquement, seulement signalés.
   différentes** — étude complète dans
   [`.wip/kb/active/agent-tooling/agent-skills-cross-tool-integration.json`](../.wip/kb/active/agent-tooling/agent-skills-cross-tool-integration.json)
   (fiche migrée du Markdown vers le format JSON le 2026-07-16, voir
-  [Base de connaissance](#base-de-connaissance-wipkb-et-knowledge-base) plus haut).
+  [Base de connaissance](#base-de-connaissance-wipkb-uniquement-en-local-knowledge-base-en-distant) plus haut).
   Copilot découvre nativement les `SKILL.md` sous **trois** emplacements
   (`.github/skills/`, `.claude/skills/`, `.agents/skills/` — standard ouvert
   [Agent Skills](https://agentskills.io)), donc peut charger le `SKILL.md`

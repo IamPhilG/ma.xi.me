@@ -26,26 +26,21 @@ réinstaller/mettre à jour une installation existante (idempotent, comme
    projetés : ces scripts sont la source de vérité testée.
 7. Vérifier les fichiers projetés et l'exclusion Git de `.wip/` et `.bkp/`
    (`.git/info/exclude` et `.gitignore`).
-8. Si une knowledge base partagée existe pour ce contexte, proposer
-   explicitement `git submodule add <url> knowledge-base` — jamais
-   automatique, jamais sans connaître l'URL du repo KB à utiliser. Si
-   Philippe ne fournit pas d'URL ou décline, ne pas insister : Maxime KB
-   fonctionne déjà avec `.wip/kb/` seul.
-9. Demander explicitement si cet environnement autorise l'écriture réseau
-   (push vers le repo KB partagé) et la lecture réseau (pull/clone), et
-   consigner la réponse dans `.wip/tools/kb-network-policy.json`
-   (`network_read`, `network_write`). Par défaut si jamais répondu :
-   `network_write: false` — ne jamais présumer une écriture autorisée.
-   Maxime KB consulte ce fichier avant toute action réseau.
-10. Si cet appel est une **mise à jour** d'une installation existante (pas
-    une première installation), afficher le SHA source local
-    (`.claude/MAXIME_VERSION` ou équivalent par hôte) et le SHA distant
-    avant de redemander confirmation — la mise à jour n'est jamais une
-    boîte noire. La mise à jour recompose les mêmes petits scripts
-    `install/lib/` que l'étape 6, jamais un script séparé.
+8. Si cet appel est une **mise à jour** d'une installation existante (pas
+   une première installation), afficher le SHA source local
+   (`.claude/MAXIME_VERSION` ou équivalent par hôte) et le SHA distant
+   avant de redemander confirmation — la mise à jour n'est jamais une
+   boîte noire. La mise à jour recompose les mêmes petits scripts
+   `install/lib/` que l'étape 6, jamais un script séparé.
 
 L'installation est toujours locale au repository cible ; aucun répertoire global
 utilisateur n'est utilisé. Aucun autre agent mA.xI.me (`start`, `plan`,
 `handoff`, `retrofit`, `review`, `kb`) ne doit travailler si ce repository n'a
 pas encore été initialisé : ce sont eux qui redirigent vers Maxime Init, pas
 l'inverse — ce workflow ne dépend d'aucun état préexistant.
+
+Maxime Init déploie mA.xI.me, rien de plus — comme `git init`. Il ne
+propose jamais lui-même de knowledge base partagée ni de politique réseau :
+ces décisions sont contextuelles (elles dépendent de l'objectif de session
+et des technologies en jeu), donc elles reviennent à Maxime Start puis
+Maxime KB une fois la main rendue, jamais à l'étape de déploiement.

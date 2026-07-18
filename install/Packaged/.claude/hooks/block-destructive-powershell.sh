@@ -36,6 +36,9 @@ hard_deny+='|git[[:space:]]+checkout[[:space:]]+--([[:space:]]|$)'
 hard_deny+='|git[[:space:]]+checkout[[:space:]]+\.([[:space:]]|$)'
 hard_deny+='|git[[:space:]]+branch[[:space:]]+(-D|--delete[[:space:]]+--force)'
 hard_deny+='|git[[:space:]]+add[[:space:]]+(-A|--all)([[:space:]]|$)'
+# mA.xI.me n'a jamais de dossier knowledge-base/ local (decision 2026-07-17) :
+# meme raisonnement que block-destructive-bash.sh -- voir son en-tete.
+hard_deny+='|git[[:space:]]+submodule[[:space:]]+(add|update)[^|;`]*knowledge-base'
 
 soft_ask='git[[:space:]]+push[[:space:]]+[^|;`]*(--force\b|-f\b|--force-with-lease)'
 soft_ask+='|git[[:space:]]+push[[:space:]]+[^|;`]*--delete'
