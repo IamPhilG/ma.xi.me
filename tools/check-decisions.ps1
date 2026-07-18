@@ -349,28 +349,37 @@ try {
         if ($maximeHandoff -notmatch 'Maxime KB') {
             throw "L'agent maxime-handoff genere ne mentionne pas la capture de lecons via Maxime KB."
         }
+        if ($maximeKb -notmatch 'network_read|network_write') {
+            throw "L'agent maxime-kb genere ne mentionne pas network_read/network_write."
+        }
         $maximeInit = Get-Content -Raw -Path (Join-Path $repositoryRoot 'install\Packaged\agents\maxime-init.md')
-        if ($maximeInit -notmatch 'network_read|network_write') {
-            throw "L'agent maxime-init genere ne mentionne pas la question de politique reseau."
+        if ($maximeInit -match 'submodule') {
+            throw "L'agent maxime-init genere mentionne encore le submodule knowledge-base -- ce n'est plus sa responsabilite (deplacee vers maxime-kb, 2026-07-17)."
         }
         $true
     }
 
-    # Decision (issue #29): maxime-kb documents not just the network-write
-    # guard but the actual two-repo Git mechanic needed to push a fiche to
-    # knowledge-base/ -- checkout main before writing (submodules default to
-    # detached HEAD) and a second commit in the consumer repo to bump the
-    # submodule pointer, proposed in the same pass, not a step to forget.
-    Test-Decision 'maxime-kb documente la mecanique Git en 2 temps pour pousser vers knowledge-base (issue #29)' {
+    # Decision (2026-07-17): maxime never mounts a knowledge-base/ folder or
+    # submodule in the target repo -- the only local KB directory is
+    # .wip/kb/. The shared repo (OurITRes/knowledge-base) is read and
+    # written exclusively via the GitHub API (gh api), replacing the
+    # submodule + two-repo/two-commit mechanic from issue #29 (wired once on
+    # this very repo to validate it, then found undesirable and retired the
+    # same day).
+    Test-Decision "knowledge base partagee accedee uniquement via l'API GitHub, jamais de dossier knowledge-base/ (submodule retire, issue #29 obsolete)" {
         $maximeKbAgent = Get-Content -Raw -Path (Join-Path $repositoryRoot 'install\Packaged\agents\maxime-kb.md')
-        if ($maximeKbAgent -notmatch 'checkout main') {
-            throw "L'agent maxime-kb genere ne mentionne pas de sortir le submodule du detached HEAD (git checkout main)."
+        $maximeInitAgent = Get-Content -Raw -Path (Join-Path $repositoryRoot 'install\Packaged\agents\maxime-init.md')
+        if ($maximeKbAgent -notmatch 'gh api') {
+            throw "L'agent maxime-kb genere ne mentionne pas l'acces via 'gh api'."
         }
-        if ($maximeKbAgent -notmatch '(?i)bump') {
-            throw "L'agent maxime-kb genere ne mentionne pas le second commit de bump du pointeur de submodule."
+        if ($maximeKbAgent -notmatch '(?i)pull request') {
+            throw "L'agent maxime-kb genere ne mentionne pas l'ouverture d'une pull request pour publier."
         }
-        if ($maximeKbAgent -notmatch 'submodule \(new commits\)') {
-            throw "L'agent maxime-kb genere ne mentionne pas la verification de derive post-push (git status)."
+        if ($maximeKbAgent -match 'git submodule add') {
+            throw "L'agent maxime-kb genere propose encore 'git submodule add' -- ce mecanisme a ete retire le 2026-07-17."
+        }
+        if ($maximeInitAgent -match '(?i)submodule') {
+            throw "L'agent maxime-init genere mentionne 'submodule' -- ne doit jamais en avoir la responsabilite."
         }
         $true
     }
@@ -679,6 +688,60 @@ try {
         $decision = Invoke-HookAndGetDecision -Script $bashHook -Json ("{`"cwd`":`"$fixture`",`"tool_input`":{`"command`":`"git checkout -- .`"}}")
         if ($decision -ne 'deny') {
             throw "regression: 'git checkout -- .' n'est plus un deny dur (decision: '$decision')."
+        }
+
+        $true
+    }
+
+    # Decision (2026-07-17): text alone does not reliably stop an agent from
+    # proposing to wire knowledge-base as a submodule -- verified in real
+    # use: core/workflows/maxime-kb.md was strengthened 3 times (a plain
+    # rule, an explicit callout, a top-of-document blockquote) and a live
+    # maxi-claude-kb agent proposed 'git submodule add ... knowledge-base'
+    # all 3 times anyway. Mechanical hard_deny added on top of the text,
+    # same family as the other irreversible-action guards.
+    Test-Decision "git submodule add/update vers knowledge-base bloque mecaniquement (hard_deny), le texte seul a echoue 3 fois en test reel" {
+        $fixture = Join-Path $tempRoot 'fixture-kb-submodule-deny'
+        New-Item -ItemType Directory -Path $fixture | Out-Null
+        Push-Location $fixture
+        try { git init -q } finally { Pop-Location }
+        $fixture = (& git -C $fixture rev-parse --show-toplevel).Trim()
+
+        & (Join-Path $repositoryRoot 'install\install.ps1') -Target claude -WorkspaceRoot $fixture | Out-Null
+
+        $gitBash = Join-Path (Split-Path (Split-Path (Get-Command git.exe -ErrorAction Stop).Source -Parent) -Parent) 'bin\bash.exe'
+        if (!(Test-Path $gitBash)) {
+            throw "git-bash introuvable a l'emplacement attendu ($gitBash) -- impossible de tester fonctionnellement les hooks depuis ce checker."
+        }
+
+        $hooksDir = Join-Path $fixture '.claude\hooks'
+        $payload = Join-Path $tempRoot 'hook-payload-kb-submodule.json'
+
+        function Invoke-HookAndGetDecision2 {
+            param([string]$Script, [string]$Json)
+            Set-Content -Path $payload -Value $Json -Encoding UTF8 -NoNewline
+            $bashScript = $Script -replace '\\', '/'
+            $out = Get-Content -Raw -Path $payload | & $gitBash $bashScript
+            if ([string]::IsNullOrEmpty($out)) { return '' }
+            return ($out | & $gitBash -c 'jq -r ".hookSpecificOutput.permissionDecision // empty"')
+        }
+
+        $bashHook = Join-Path $hooksDir 'block-destructive-bash.sh'
+        $psHook = Join-Path $hooksDir 'block-destructive-powershell.sh'
+
+        $decision = Invoke-HookAndGetDecision2 -Script $bashHook -Json ("{`"cwd`":`"$fixture`",`"tool_input`":{`"command`":`"git submodule add https://github.com/OurITRes/knowledge-base knowledge-base`"}}")
+        if ($decision -ne 'deny') {
+            throw "'git submodule add ... knowledge-base' n'est pas bloque par block-destructive-bash.sh (decision: '$decision')."
+        }
+
+        $decision = Invoke-HookAndGetDecision2 -Script $psHook -Json ("{`"cwd`":`"$fixture`",`"tool_input`":{`"command`":`"git submodule update --init --recursive knowledge-base`"}}")
+        if ($decision -ne 'deny') {
+            throw "'git submodule update ... knowledge-base' n'est pas bloque par block-destructive-powershell.sh (decision: '$decision')."
+        }
+
+        $decision = Invoke-HookAndGetDecision2 -Script $bashHook -Json ("{`"cwd`":`"$fixture`",`"tool_input`":{`"command`":`"git submodule add https://example.com/other-repo.git vendor/other-repo`"}}")
+        if ($decision -eq 'deny') {
+            throw "un submodule sans rapport avec knowledge-base est bloque a tort (decision: '$decision')."
         }
 
         $true

@@ -46,6 +46,12 @@ hard_deny+='|git[[:space:]]+checkout[[:space:]]+--([[:space:]]|$)'
 hard_deny+='|git[[:space:]]+checkout[[:space:]]+\.([[:space:]]|$)'
 hard_deny+='|git[[:space:]]+branch[[:space:]]+(-D|--delete[[:space:]]+--force)'
 hard_deny+='|git[[:space:]]+add[[:space:]]+(-A|--all)([[:space:]]|$)'
+# mA.xI.me n'a jamais de dossier knowledge-base/ local (decision 2026-07-17) :
+# meme apres renforcement du texte de core/workflows/maxime-kb.md (regle 1,
+# callout en tete de document), un agent reel a propose 3 fois de suite
+# 'git submodule add ... knowledge-base' malgre l'interdiction ecrite -- le
+# texte seul ne suffit pas, verrou mecanique en complement.
+hard_deny+='|git[[:space:]]+submodule[[:space:]]+(add|update)[^|;&]*knowledge-base'
 
 # Risqué mais parfois légitime en interactif → ASK (force un prompt humain)
 soft_ask='git[[:space:]]+push[[:space:]]+[^|;&]*(--force\b|-f\b|--force-with-lease)'

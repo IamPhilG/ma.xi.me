@@ -23,67 +23,99 @@ le corps. Les seuls champs exemptés de concision sont ceux qui ne peuvent pas
 se réduire à quelques mots (`title`, `source`, `content`). Schéma complet :
 `.wip/specs/kb-json-schema.md`.
 
-1. Vérifier que `knowledge-base/` (submodule) et `.wip/kb/` (fiches locales)
-   sont disponibles ; si absents, le signaler sans inventer leur contenu.
-   `knowledge-base/` est encore au format Markdown+frontmatter (migration JSON
-   prévue dans une itération séparée) ; `.wip/kb/` est au format JSON. Lire
-   les deux formats sans les confondre.
-2. Lire l'index (`.wip/kb/index.json` et l'index de `knowledge-base/` s'il
-   existe), puis sélectionner par attribut (`theme`, `tags`, `type`, `scope`)
-   les fiches pertinentes pour la tâche en cours — ne jamais tout charger. Le
-   `content` de chaque fiche n'est ouvert qu'après cette sélection.
-3. Ne pas charger `archived/` sans demande explicite.
-4. Séparer strictement le savoir générique réutilisable (`audience: generic`)
+> **Contrainte absolue, sans exception : `OurITRes/knowledge-base` n'est
+> jamais présent comme dossier sur le disque du repository cible.** Pas de
+> clone, pas de checkout, pas de mécanisme Git qui matérialise ce dépôt sur
+> le système de fichiers — ni maintenant, ni "pour plus tard", ni comme
+> option secondaire même présentée comme un progrès ("accès plus
+> systématique", "plus simple à l'usage"). Le seul canal, en lecture comme en
+> écriture, est l'API HTTPS de GitHub (`gh api`). `.wip/kb/` est le seul
+> répertoire de connaissance qui existe jamais sur disque.
+
+1. Vérifier que `.wip/kb/` (fiches locales) est disponible ; sinon le
+   signaler sans inventer son contenu. `.wip/kb/` est toujours local et
+   n'est jamais concerné par la politique réseau ci-dessous.
+2. **Dépôt partagé par défaut, interrogé à chaque première invocation de
+   session** : `OurITRes/knowledge-base` — URL connue et fixée dans ce
+   contrat, jamais à deviner ni à demander à l'utilisateur, accédé selon la
+   contrainte ci-dessus (`gh api` uniquement) : lire
+   `repos/OurITRes/knowledge-base/contents/index.json` (et les fiches
+   `active/<theme>/<id>.json` pertinentes à la demande) avant toute action
+   réseau, vérifier `.wip/tools/kb-network-policy.json` (`network_read`) ;
+   s'il n'existe pas encore, le créer avec les valeurs fail-safe
+   (`network_read: true`, `network_write: false`) et le signaler une fois.
+   Cette interrogation a lieu systématiquement dès qu'un objectif de session
+   est connu, jamais seulement sur demande explicite — c'est cet objectif,
+   formulé par `maxime-start`, qui oriente la recherche (thème, techno,
+   contexte), pas une condition que l'agent devrait deviner par lui-même.
+   Les deux sources partagent le même schéma JSON (`index.json` +
+   `active/<theme>/<id>.json` + `archived/`) — confirmé pour
+   `OurITRes/knowledge-base` par lecture directe de son `KB-CONVENTIONS.md`
+   le 2026-07-17.
+3. Lire l'index (`.wip/kb/index.json` en local, `index.json` de
+   `knowledge-base` via l'API), puis sélectionner par attribut (`theme`,
+   `tags`, `type`, `scope`) les fiches pertinentes pour la tâche en cours —
+   ne jamais tout charger. Le `content` de chaque fiche n'est ouvert qu'après
+   cette sélection.
+4. Une fois les résultats de cette première recherche présentés (y compris
+   s'ils sont vides), demander explicitement si une **knowledge base JSON
+   supplémentaire** — spécifique à ce projet, ce client ou cet employeur,
+   distincte du dépôt par défaut — doit aussi être interrogée. Contrairement
+   au dépôt par défaut, cette KB additionnelle n'a pas d'URL connue à
+   l'avance : ne jamais la proposer sans que Philippe fournisse l'URL, et ne
+   jamais insister s'il décline. Même règle d'accès : API uniquement, jamais
+   de clone.
+5. Ne pas charger `archived/` sans demande explicite.
+6. Séparer strictement le savoir générique réutilisable (`audience: generic`)
    des données de projet, client, employeur ou secrets (`audience: project`
    ou `secret`).
-5. Quand une fiche pertinente vit dans `knowledge-base/` (référence externe)
-   mais n'est pas encore reprise localement, le signaler et proposer
-   explicitement de l'intégrer — jamais automatique. Avant toute écriture
-   vers `knowledge-base/` (nouvelle fiche, mise à jour, `git submodule
-   update`), lire `.wip/tools/kb-network-policy.json` : ne jamais proposer
-   d'écriture réseau si `network_write` est `false` ou absent ; ne proposer
-   un `git submodule update` (lecture) que si `network_read` est `true`.
-   Si le fichier de politique n'existe pas, se comporter comme si
-   `network_write: false` et le signaler une fois, sans bloquer le travail
-   dans `.wip/kb/` (toujours local, jamais concerné par cette politique).
+7. Quand une fiche pertinente vit dans `knowledge-base` (référence externe,
+   lue via l'API) mais n'est pas encore reprise localement, le signaler et
+   proposer explicitement de l'intégrer dans `.wip/kb/` — jamais
+   automatique, et jamais dans un autre dossier que `.wip/kb/`.
+
+   Avant toute écriture réseau vers `knowledge-base` (nouvelle fiche, mise à
+   jour), lire `.wip/tools/kb-network-policy.json` : ne jamais proposer
+   d'écriture réseau si `network_write` est `false` ou absent — dans ce cas,
+   demander explicitement si l'environnement autorise l'écriture réseau
+   (push) et consigner la réponse dans ce même fichier.
 
    Une fois l'écriture approuvée (`network_write: true` et validation
-   explicite de l'utilisateur), la mécanique Git réelle a deux temps
-   distincts, dans deux repos — ne jamais s'arrêter au premier :
-   1. Dans `knowledge-base/` : `git checkout main` puis `git pull` avant
-      toute modification (`git submodule add`/`update` place le submodule en
-      detached HEAD par défaut ; un commit fait en detached HEAD part dans
-      le vide, jamais rattaché à une branche, facile à perdre). Puis
-      committer et pousser la fiche normalement.
-   2. Dans le repository courant (le consommateur) : committer et pousser le
-      nouveau pointeur de submodule (`git add knowledge-base && git commit
-      -m "chore: bump knowledge-base submodule"`). Sans ce second commit, la
-      fiche est bien poussée vers `knowledge-base/`, mais le repo
-      consommateur reste épinglé sur l'ancien commit — silencieusement, sans
-      erreur. Proposer les deux commits dans la même passe, jamais comme une
-      étape qu'on pourrait oublier après coup.
-   Vérifier ensuite `git status` dans le repo consommateur : aucune dérive
-   `submodule (new commits)` ne doit subsister.
-6. Proposer la création d'une nouvelle fiche seulement si le savoir rencontré
+   explicite de l'utilisateur), publier **uniquement via l'API GitHub**
+   (`gh api` — Git Data API pour créer blob(s)/arbre/commit/branche, ou
+   Contents API pour un commit par fichier sur une branche existante), sans
+   jamais cloner `knowledge-base` localement, même dans `.wip/tmp/` :
+   1. Créer une branche depuis `main` (jamais commiter directement sur
+      `main` d'un repo partagé en équipe).
+   2. Committer la ou les fiches sur cette branche via l'API.
+   3. Ouvrir une pull request (`gh pr create`) — jamais la fusionner
+      automatiquement, la revue reste humaine.
+   Comme il n'existe aucun dossier `knowledge-base/` local, il n'y a plus de
+   pointeur de submodule à synchroniser dans le repository consommateur —
+   la pull request sur `knowledge-base` est la seule trace de la
+   publication, plus simple que l'ancienne mécanique en deux commits/deux
+   repos (retirée le 2026-07-17, elle supposait un submodule qui n'existe
+   plus dans ce contrat).
+8. Proposer la création d'une nouvelle fiche seulement si le savoir rencontré
    est durable, transversal et publiable, absent des fiches existantes.
    Toute nouvelle fiche respecte le schéma JSON (`id`, `type`, `title`,
    `theme`, `tags`, `scope`, `status`, `confidence`, `audience`, `source`,
    `validated`, `created`, `ttl_days`, `links`, `content`) — jamais une note
    libre hors schéma.
-7. Tenir `.wip/kb/index.json` à jour (une entrée par fiche, sans `content`) à
+9. Tenir `.wip/kb/index.json` à jour (une entrée par fiche, sans `content`) à
    chaque création ou changement d'attribut.
-8. Faire passer une fiche de `status: draft` (capture brute) à `status:
-   active` une fois son contenu relu et validé.
-9. Comparer `validated` à `ttl_days` pour chaque fiche consultée ; si l'écart
-   dépasse `ttl_days`, proposer explicitement trois options plutôt que
-   choisir seul : **revalider maintenant** (re-vérifier la source, mettre à
-   jour `validated`), **marquer suspecte** (`status: suspect`, sans retoucher
-   le contenu), ou **ignorer pour cette session** (aucun changement, la
-   fiche sera resignalée à la prochaine consultation). `ttl_days` suit la
-   nature du sujet, pas une valeur unique : court (60-90 jours) pour les
-   plateformes qui évoluent vite (VS Code, Copilot, Codex, catalogues de
-   modèles), long (270-365 jours) pour l'infrastructure ou les protocoles
-   documentés et stables. Détail : `.wip/specs/kb-ttl-differentiation.md`.
+10. Faire passer une fiche de `status: draft` (capture brute) à `status:
+    active` une fois son contenu relu et validé.
+11. Comparer `validated` à `ttl_days` pour chaque fiche consultée ; si l'écart
+    dépasse `ttl_days`, proposer explicitement trois options plutôt que
+    choisir seul : **revalider maintenant** (re-vérifier la source, mettre à
+    jour `validated`), **marquer suspecte** (`status: suspect`, sans retoucher
+    le contenu), ou **ignorer pour cette session** (aucun changement, la
+    fiche sera resignalée à la prochaine consultation). `ttl_days` suit la
+    nature du sujet, pas une valeur unique : court (60-90 jours) pour les
+    plateformes qui évoluent vite (VS Code, Copilot, Codex, catalogues de
+    modèles), long (270-365 jours) pour l'infrastructure ou les protocoles
+    documentés et stables. Détail : `.wip/specs/kb-ttl-differentiation.md`.
 
 Les autres agents mA.xI.me (`start`, `plan`, `handoff`, `retrofit`, `review`)
 peuvent s'appuyer sur Maxime KB pour toute question documentaire, en
